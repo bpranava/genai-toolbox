@@ -618,142 +618,47 @@ func GetRedisValkeyToolsConfig(sourceConfig map[string]any, toolKind string) map
 }
 
 // func GetDuckDbParamToolInfo() (string, string, string, string, string, []any) { returns statements and param for my-param-tool duckdb-sql kind
-func GetDuckDbParamToolInfo() (string, string, string, []any) {
-	// createStatement := "CREATE TABLE hotel_bookings (booking_id INTEGER,guest_name VARCHAR,check_in_date DATE,total_amount DOUBLE)"
-	// insertStatement := "INSERT INTO hotel_bookings VALUES (1, 'John Smith', '2025-07-01', $1), (2, 'Emma Johnson', '2025-07-02', $2),	(3, 'Michael Chen', '2025-07-01', $3),(4, 'Emma Johnson', '2025-07-03', $4)"
+// func GetDuckDbParamToolInfo(tableName string) (string, string, string, string, string, []any) {
+// 	// createStatement := "CREATE TABLE hotel_bookings (booking_id INTEGER,guest_name VARCHAR,check_in_date DATE,total_amount DOUBLE)"
+// 	// insertStatement := "INSERT INTO hotel_bookings VALUES (1, 'John Smith', '2025-07-01', $1), (2, 'Emma Johnson', '2025-07-02', $2),	(3, 'Michael Chen', '2025-07-01', $3),(4, 'Emma Johnson', '2025-07-03', $4)"
+// 	createStatement := "CREATE TABLE IF NOT EXISTS %s (id SERIAL PRIMARY KEY,name TEXT, email TEXT);"
+// 	insertStatement := "INSERT INTO hotel_bookings VALUES (1, 'John Smith', '2025-07-01', $1), (2, 'Emma Johnson', '2025-07-02', $2),	(3, 'Michael Chen', '2025-07-01', $3),(4, 'Emma Johnson', '2025-07-03', $4)"
 
-	toolStatement := "SELECT booking_id, guest_name, total_amount FROM hotel_bookings WHERE total_amount > $4"
-	toolStatement2 := "SELECT * EXCLUDE (booking_id) FROM hotel_bookings WHERE total_amount <= $4"
-	arrayToolStatement := "SELECT DISTINCT ON (guest_name) guest_name, check_in_date, total_amount FROM hotel_bookings ORDER BY guest_name, check_in_date DESC"
-	params := []any{"200.00", "450.00", "500.00", "300.00"}
-	return toolStatement, toolStatement2, arrayToolStatement, params
+//		toolStatement := "SELECT booking_id, guest_name, total_amount FROM hotel_bookings WHERE total_amount > $4"
+//		toolStatement2 := "SELECT * EXCLUDE (booking_id) FROM hotel_bookings WHERE total_amount <= $4"
+//		arrayToolStatement := "SELECT DISTINCT ON (guest_name) guest_name, check_in_date, total_amount FROM hotel_bookings ORDER BY guest_name, check_in_date DESC"
+//		params := []any{"200.00", "450.00", "500.00", "300.00"}
+//		return toolStatement, toolStatement2, arrayToolStatement, params
+//	}
+func GetDuckDbParamToolInfo(tableName string) (string, string, string, string, string, []any) {
+	createStatement := fmt.Sprintf("CREATE TABLE %s (id INTEGER PRIMARY KEY, name TEXT);", tableName)
+	insertStatement := fmt.Sprintf("INSERT INTO %s (id, name) VALUES (1, $1), (2, $2), (3, $3), (4, $4);", tableName)
+	toolStatement := fmt.Sprintf("SELECT * EXCLUDE (id) FROM %s WHERE id = $1 OR name = $2 order by id;", tableName)
+	toolStatement2 := fmt.Sprintf("SELECT * FROM %s WHERE id = $1;", tableName)
+	arrayToolStatement := fmt.Sprintf("SELECT * FROM %s WHERE id = ANY($1) AND name = ANY($2);", tableName)
+	params := []any{"Alice", "Jane", "Sid", nil}
+	return createStatement, insertStatement, toolStatement, toolStatement2, arrayToolStatement, params
 }
 
 // GetDuckDbAuthToolInfo returns statements and param of my-auth-tool for postgres-sql kind
-func GetDuckDbAuthToolInfo(tableName string) (string, []any) {
-	// createStatement := fmt.Sprintf("CREATE TABLE %s (id SERIAL PRIMARY KEY, name TEXT, email TEXT);", tableName)
-	// insertStatement := fmt.Sprintf("INSERT INTO %s (name, email) VALUES ($1, $2), ($3, $4)", tableName)
+func GetDuckDbAuthToolInfo(tableName string) (string, string, string, []any) {
+	createStatement := fmt.Sprintf("CREATE TABLE %s (id INTEGER PRIMARY KEY, name TEXT, email TEXT);", tableName)
+	insertStatement := fmt.Sprintf("INSERT INTO %s (id, name, email) VALUES (1, $1, $2), (2, $3, $4)", tableName)
 	toolStatement := fmt.Sprintf("SELECT name FROM %s WHERE email = $1;", tableName)
 	params := []any{"Alice", ServiceAccountEmail, "Jane", "janedoe@gmail.com"}
-	return toolStatement, params
+	return createStatement, insertStatement, toolStatement, params
 }
 
-// GetDuckDbTmplToolStatement returns statements and param for template parameter test cases for postgres-sql kind
-func GetDuckDbTmplToolStatement() (string, string) {
-	tmplSelectCombined := "SELECT * FROM {{.tableName}} WHERE id = $1"
-	tmplSelectFilterCombined := "SELECT * FROM {{.tableName}} WHERE {{.columnFilter}} = $1"
-	return tmplSelectCombined, tmplSelectFilterCombined
+func GetDuckDbWants() (string, string, string) {
+	select1Want := "[{\"1\":1}]"
+	failInvocationWant := `{"jsonrpc":"2.0","id":"invoke-fail-tool","result":{"content":[{"type":"text","text":"unable to execute query: Parser Error: syntax error at or near \"SELEC\""}],"isError":true}}`
+	createTableStatement := `"CREATE TABLE t (id SERIAL PRIMARY KEY, name TEXT)"`
+	return select1Want, failInvocationWant, createTableStatement
 }
 
-func GetDuckDbConfig(sourceConfig map[string]any, toolKind, paramToolStatement, paramToolStatement2, arrayToolStatement, authToolStatement string) map[string]any {
-	// Write config into a file and pass it to command
-	toolsFile := map[string]any{
-		"sources": map[string]any{
-			"my-instance": sourceConfig,
-		},
-		"tools": map[string]any{
-			"my-simple-tool": map[string]any{
-				"kind":        toolKind,
-				"source":      "my-instance",
-				"description": "Simple tool to test end to end functionality.",
-				"statement":   "SELECT 1;",
-			},
-			"my-param-tool": map[string]any{
-				"kind":        toolKind,
-				"source":      "my-instance",
-				"description": "Tool to test invocation with params.",
-				"statement":   paramToolStatement,
-				"parameters": []any{
-					map[string]any{
-						"name":        "id",
-						"type":        "integer",
-						"description": "user ID",
-					},
-					map[string]any{
-						"name":        "name",
-						"type":        "string",
-						"description": "user name",
-					},
-				},
-			},
-			"my-param-tool2": map[string]any{
-				"kind":        toolKind,
-				"source":      "my-instance",
-				"description": "Tool to test invocation with params.",
-				"statement":   paramToolStatement2,
-				"parameters": []any{
-					map[string]any{
-						"name":        "id",
-						"type":        "integer",
-						"description": "user ID",
-					},
-				},
-			},
-			"my-array-tool": map[string]any{
-				"kind":        toolKind,
-				"source":      "my-instance",
-				"description": "Tool to test invocation with array params.",
-				"statement":   arrayToolStatement,
-				"parameters": []any{
-					map[string]any{
-						"name":        "idArray",
-						"type":        "array",
-						"description": "ID array",
-						"items": map[string]any{
-							"name":        "id",
-							"type":        "integer",
-							"description": "ID",
-						},
-					},
-					map[string]any{
-						"name":        "nameArray",
-						"type":        "array",
-						"description": "user name array",
-						"items": map[string]any{
-							"name":        "name",
-							"type":        "string",
-							"description": "user name",
-						},
-					},
-				},
-			},
-			"my-auth-tool": map[string]any{
-				"kind":        toolKind,
-				"source":      "my-instance",
-				"description": "Tool to test authenticated parameters.",
-				// statement to auto-fill authenticated parameter
-				"statement": authToolStatement,
-				"parameters": []map[string]any{
-					{
-						"name":        "email",
-						"type":        "string",
-						"description": "user email",
-						"authServices": []map[string]string{
-							{
-								"name":  "my-google-auth",
-								"field": "email",
-							},
-						},
-					},
-				},
-			},
-			"my-auth-required-tool": map[string]any{
-				"kind":        toolKind,
-				"source":      "my-instance",
-				"description": "Tool to test auth required invocation.",
-				"statement":   "SELECT 1;",
-				"authRequired": []string{
-					"my-google-auth",
-				},
-			},
-			"my-fail-tool": map[string]any{
-				"kind":        toolKind,
-				"source":      "my-instance",
-				"description": "Tool to test statement with incorrect syntax.",
-				"statement":   "SELEC 1;",
-			},
-		},
-	}
-
-	return toolsFile
+func GetDuckDbInvokeParamWant() (string, string, string) {
+	invokeParamWant := "[{\"name\":\"Alice\"},{\"name\":\"Sid\"}]"
+	invokeParamWantNull := "[{\"id\":4,\"name\":null}]"
+	mcpInvokeParamWant := `{"jsonrpc":"2.0","id":"my-param-tool","result":{"content":[{"type":"text","text":"{\"name\":\"Alice\"}"},{"type":"text","text":"{\"name\":\"Sid\"}"}]}}`
+	return invokeParamWant, invokeParamWantNull, mcpInvokeParamWant
 }
