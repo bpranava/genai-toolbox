@@ -100,10 +100,10 @@ func getDuckDbConfiguration(dbFilePath string, duckdbConfiguration map[string]st
 		return ""
 	}
 	var configStr strings.Builder
-	configStr.WriteString("?")
 	if dbFilePath != "" {
-		configStr.WriteString(url.QueryEscape(dbFilePath))
+		configStr.WriteString(dbFilePath)
 	}
+	configStr.WriteString("?")
 	first := true
 	for key, value := range duckdbConfiguration {
 		if !first {
