@@ -106,8 +106,8 @@ type DuckDbTool struct {
 }
 
 // Authorized implements tools.Tool.
-func (d DuckDbTool) Authorized([]string) bool {
-	panic("unimplemented")
+func (d DuckDbTool) Authorized(verifiedAuthSources []string) bool {
+	return tools.IsAuthorized(d.AuthRequired, verifiedAuthSources)
 }
 
 // Invoke implements tools.Tool.

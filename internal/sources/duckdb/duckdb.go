@@ -9,6 +9,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/googleapis/genai-toolbox/internal/sources"
+	_ "github.com/marcboeker/go-duckdb"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -49,7 +50,8 @@ var _ sources.Source = &DuckDbSource{}
 type Config struct {
 	Name           string            `yaml:"name" validate:"required"`
 	Kind           string            `yaml:"kind" validate:"required"`
-	Configurations map[string]string `yaml:"configurations"`
+	DatabaseFile   string            `yaml:"dbFilePath,omitempty"`
+	Configurations map[string]string `yaml:"configurations,omitempty"`
 }
 
 func (r Config) SourceConfigKind() string {
@@ -57,7 +59,7 @@ func (r Config) SourceConfigKind() string {
 }
 
 func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.Source, error) {
-	db, err := initDuckDbConnection(ctx, tracer, r.Name, r.Configurations)
+	db, err := initDuckDbConnection(ctx, tracer, r.Name, r.DatabaseFile, r.Configurations)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create db connection: %w", err)
 	}
@@ -78,27 +80,30 @@ func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.So
 // validate interface
 var _ sources.SourceConfig = Config{}
 
-func initDuckDbConnection(ctx context.Context, tracer trace.Tracer, name string, duckdbConfiguration map[string]string) (*sql.DB, error) {
+func initDuckDbConnection(ctx context.Context, tracer trace.Tracer, name string, dbFilePath string, duckdbConfiguration map[string]string) (*sql.DB, error) {
 	//nolint:all // Reassigned ctx
 	ctx, span := sources.InitConnectionSpan(ctx, tracer, SourceKind, name)
 	defer span.End()
 
-	var configStr string = getDuckDbConfiguration(duckdbConfiguration)
+	var configStr string = getDuckDbConfiguration(dbFilePath, duckdbConfiguration)
 
 	//Open database connection
 	db, err := sql.Open("duckdb", configStr)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open duckdb connection: %w", err)
 	}
-	defer db.Close()
 	return db, nil
 }
 
-func getDuckDbConfiguration(duckdbConfiguration map[string]string) string {
-	if len(duckdbConfiguration) == 0 {
+func getDuckDbConfiguration(dbFilePath string, duckdbConfiguration map[string]string) string {
+	if dbFilePath == "" && len(duckdbConfiguration) == 0 {
 		return ""
 	}
 	var configStr strings.Builder
+	configStr.WriteString("?")
+	if dbFilePath != "" {
+		configStr.WriteString(url.QueryEscape(dbFilePath))
+	}
 	first := true
 	for key, value := range duckdbConfiguration {
 		if !first {
