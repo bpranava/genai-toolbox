@@ -413,7 +413,7 @@ in the cloud, on GCP, or on premises.&lt;/p>
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">timeout&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">600s&lt;/span>&lt;span class="w">
 &lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The Looker base url will look like &amp;ldquo;&lt;a href="https://looker.example.com">https://looker.example.com&lt;/a>&amp;rdquo;, don&amp;rsquo;t include
 a trailing &amp;ldquo;/&amp;rdquo;. In some cases, especially if your Looker is deployed
-on-premises, you may need to add the API port numner like
+on-premises, you may need to add the API port number like
 &amp;ldquo;&lt;a href="https://looker.example.com:19999">https://looker.example.com:19999&lt;/a>&amp;rdquo;.&lt;/p></description></item><item><title>MongoDB</title><link>https://bpranava.github.io/genai-toolbox/resources/sources/mongodb/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://bpranava.github.io/genai-toolbox/resources/sources/mongodb/</guid><description>&lt;h2 id="about">About&lt;/h2>
 &lt;p>&lt;a href="https://www.mongodb.com/docs/atlas/getting-started/">MongoDB&lt;/a> is a popular NoSQL database that stores data in
 flexible, JSON-like documents, making it easy to develop and scale applications.&lt;/p>
@@ -421,9 +421,7 @@ flexible, JSON-like documents, making it easy to develop and scale applications.
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">sources&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">my-mongodb&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">kind&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">mongodb&lt;/span>&lt;span class="w">
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">uri&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;mongodb+srv://username:password@host.mongodb.net&amp;#34;&lt;/span>&lt;span class="w">
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">database&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">sample_mflix&lt;/span>&lt;span class="w">
-&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> 
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">uri&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;mongodb+srv://username:password@host.mongodb.net&amp;#34;&lt;/span>&lt;span class="w"> 
 &lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="reference">Reference&lt;/h2>
 &lt;table>
  &lt;thead>
@@ -617,7 +615,11 @@ Run Cypher queries against your Neo4j graph database.&lt;/li>
 &lt;h3 id="database-user">Database User&lt;/h3>
 &lt;p>This source only uses standard authentication. You will need to &lt;a href="https://neo4j.com/docs/operations-manual/current/authentication-authorization/manage-users/">create a Neo4j
 user&lt;/a> to log in to the database with, or use the default &lt;code>neo4j&lt;/code>
-user if available.&lt;/p></description></item><item><title>PostgreSQL</title><link>https://bpranava.github.io/genai-toolbox/resources/sources/postgres/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://bpranava.github.io/genai-toolbox/resources/sources/postgres/</guid><description>&lt;h2 id="about">About&lt;/h2>
+user if available.&lt;/p></description></item><item><title>OceanBase</title><link>https://bpranava.github.io/genai-toolbox/resources/sources/oceanbase/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://bpranava.github.io/genai-toolbox/resources/sources/oceanbase/</guid><description>&lt;h2 id="about">About&lt;/h2>
+&lt;p>&lt;a href="https://www.oceanbase.com/">OceanBase&lt;/a> is a distributed relational database management system (RDBMS) that provides high availability, scalability, and strong consistency. It&amp;rsquo;s designed to handle large-scale data processing and is compatible with MySQL, making it easy for developers to migrate from MySQL to OceanBase.&lt;/p>
+&lt;h2 id="requirements">Requirements&lt;/h2>
+&lt;h3 id="database-user">Database User&lt;/h3>
+&lt;p>This source only uses standard authentication. You will need to create an OceanBase user to login to the database with. OceanBase supports MySQL-compatible user management syntax.&lt;/p></description></item><item><title>PostgreSQL</title><link>https://bpranava.github.io/genai-toolbox/resources/sources/postgres/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://bpranava.github.io/genai-toolbox/resources/sources/postgres/</guid><description>&lt;h2 id="about">About&lt;/h2>
 &lt;p>&lt;a href="https://www.postgresql.org/">PostgreSQL&lt;/a> is a powerful, open source object-relational database
 system with over 35 years of active development that has earned it a strong
 reputation for reliability, feature robustness, and performance.&lt;/p>
@@ -641,7 +643,7 @@ Connect your IDE to PostgreSQL using Toolbox.&lt;/li>
 &lt;h3 id="database-user">Database User&lt;/h3>
 &lt;p>This source only uses standard authentication. You will need to &lt;a href="https://www.postgresql.org/docs/current/sql-createuser.html">create a
 PostgreSQL user&lt;/a> to login to the database with.&lt;/p></description></item><item><title>Redis</title><link>https://bpranava.github.io/genai-toolbox/resources/sources/redis/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://bpranava.github.io/genai-toolbox/resources/sources/redis/</guid><description>&lt;h2 id="about">About&lt;/h2>
-&lt;p>Redis is an open-source, in-memory data structure store, used as a database,
+&lt;p>Redis is a in-memory data structure store, used as a database,
 cache, and message broker. It supports data structures such as strings, hashes,
 lists, sets, sorted sets with range queries, bitmaps, hyperloglogs, and
 geospatial indexes with radius queries.&lt;/p>
