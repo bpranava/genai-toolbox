@@ -89,7 +89,7 @@ To install Toolbox as a binary:
 
 ```sh
 # see releases page for other versions
-export VERSION=0.12.0
+export VERSION=0.14.0
 curl -O https://storage.googleapis.com/genai-toolbox/v$VERSION/linux/amd64/toolbox
 chmod +x toolbox
 ```
@@ -100,7 +100,7 @@ You can also install Toolbox as a container:
 
 ```sh
 # see releases page for other versions
-export VERSION=0.12.0
+export VERSION=0.14.0
 docker pull us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:$VERSION
 ```
 
@@ -118,7 +118,7 @@ To install from source, ensure you have the latest version of
 [Go installed](https://go.dev/doc/install), and then run the following command:
 
 ```sh
-go install github.com/googleapis/genai-toolbox@v0.12.0
+go install github.com/googleapis/genai-toolbox@v0.14.0
 ```
 
 {{% /tab %}}
@@ -615,265 +615,13 @@ This guide assumes you have already done the following:
 1. Installed [PostgreSQL 16+ and the `psql` client][install-postgres].
 
 ### Cloud Setup (Optional)
-
-If you plan to use **Google Cloud’s Vertex AI** with your agent (e.g., using
-`vertexai=True` or a Google GenAI model), follow these one-time setup steps for
-local development:
-
-1. [Install the Google Cloud CLI](https://cloud.google.com/sdk/docs/install)
-1. [Set up Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment)
-1. Set your project and enable Vertex AI
-
-    ```bash
-    gcloud config set project YOUR_PROJECT_ID
-    gcloud services enable aiplatform.googleapis.com
-    ```
-
-[install-python]: https://wiki.python.org/moin/BeginnersGuide/Download
-[install-pip]: https://pip.pypa.io/en/stable/installation/
-[install-venv]: https://packaging.python.org/en/latest/tutorials/installing-packages/#creating-virtual-environments
-[install-postgres]: https://www.postgresql.org/download/
+{{< regionInclude "quickstart/shared/cloud_setup.md" "cloud_setup" >}}
 
 ## Step 1: Set up your database
-
-In this section, we will create a database, insert some data that needs to be
-accessed by our agent, and create a database user for Toolbox to connect with.
-
-1. Connect to postgres using the `psql` command:
-
-    ```bash
-    psql -h 127.0.0.1 -U postgres
-    ```
-
-    Here, `postgres` denotes the default postgres superuser.
-
-    {{< notice info >}}
-
-#### **Having trouble connecting?**
-
-* **Password Prompt:** If you are prompted for a password for the `postgres`
-  user and do not know it (or a blank password doesn't work), your PostgreSQL
-  installation might require a password or a different authentication method.
-* **`FATAL: role "postgres" does not exist`:** This error means the default
-  `postgres` superuser role isn't available under that name on your system.
-* **`Connection refused`:** Ensure your PostgreSQL server is actually running.
-  You can typically check with `sudo systemctl status postgresql` and start it
-  with `sudo systemctl start postgresql` on Linux systems.
-
-<br/>
-
-#### **Common Solution**
-
-For password issues or if the `postgres` role seems inaccessible directly, try
-switching to the `postgres` operating system user first. This user often has
-permission to connect without a password for local connections (this is called
-peer authentication).
-
-```bash
-sudo -i -u postgres
-psql -h 127.0.0.1
-```
-
-Once you are in the `psql` shell using this method, you can proceed with the
-database creation steps below. Afterwards, type `\q` to exit `psql`, and then
-`exit` to return to your normal user shell.
-
-If desired, once connected to `psql` as the `postgres` OS user, you can set a
-password for the `postgres` *database* user using: `ALTER USER postgres WITH
-PASSWORD 'your_chosen_password';`. This would allow direct connection with `-U
-postgres` and a password next time.
-    {{< /notice >}}
-
-1. Create a new database and a new user:
-
-    {{< notice tip >}}
-  For a real application, it's best to follow the principle of least permission
-  and only grant the privileges your application needs.
-    {{< /notice >}}
-
-    ```sql
-      CREATE USER toolbox_user WITH PASSWORD 'my-password';
-
-      CREATE DATABASE toolbox_db;
-      GRANT ALL PRIVILEGES ON DATABASE toolbox_db TO toolbox_user;
-
-      ALTER DATABASE toolbox_db OWNER TO toolbox_user;
-    ```
-
-1. End the database session:
-
-    ```bash
-    \q
-    ```
-
-    (If you used `sudo -i -u postgres` and then `psql`, remember you might also
-    need to type `exit` after `\q` to leave the `postgres` user's shell
-    session.)
-
-1. Connect to your database with your new user:
-
-    ```bash
-    psql -h 127.0.0.1 -U toolbox_user -d toolbox_db
-    ```
-
-1. Create a table using the following command:
-
-    ```sql
-    CREATE TABLE hotels(
-      id            INTEGER NOT NULL PRIMARY KEY,
-      name          VARCHAR NOT NULL,
-      location      VARCHAR NOT NULL,
-      price_tier    VARCHAR NOT NULL,
-      checkin_date  DATE    NOT NULL,
-      checkout_date DATE    NOT NULL,
-      booked        BIT     NOT NULL
-    );
-    ```
-
-1. Insert data into the table.
-
-    ```sql
-    INSERT INTO hotels(id, name, location, price_tier, checkin_date, checkout_date, booked)
-    VALUES
-      (1, 'Hilton Basel', 'Basel', 'Luxury', '2024-04-22', '2024-04-20', B'0'),
-      (2, 'Marriott Zurich', 'Zurich', 'Upscale', '2024-04-14', '2024-04-21', B'0'),
-      (3, 'Hyatt Regency Basel', 'Basel', 'Upper Upscale', '2024-04-02', '2024-04-20', B'0'),
-      (4, 'Radisson Blu Lucerne', 'Lucerne', 'Midscale', '2024-04-24', '2024-04-05', B'0'),
-      (5, 'Best Western Bern', 'Bern', 'Upper Midscale', '2024-04-23', '2024-04-01', B'0'),
-      (6, 'InterContinental Geneva', 'Geneva', 'Luxury', '2024-04-23', '2024-04-28', B'0'),
-      (7, 'Sheraton Zurich', 'Zurich', 'Upper Upscale', '2024-04-27', '2024-04-02', B'0'),
-      (8, 'Holiday Inn Basel', 'Basel', 'Upper Midscale', '2024-04-24', '2024-04-09', B'0'),
-      (9, 'Courtyard Zurich', 'Zurich', 'Upscale', '2024-04-03', '2024-04-13', B'0'),
-      (10, 'Comfort Inn Bern', 'Bern', 'Midscale', '2024-04-04', '2024-04-16', B'0');
-    ```
-
-1. End the database session:
-
-    ```bash
-    \q
-    ```
+{{< regionInclude "quickstart/shared/database_setup.md" "database_setup" >}}
 
 ## Step 2: Install and configure Toolbox
-
-In this section, we will download Toolbox, configure our tools in a
-`tools.yaml`, and then run the Toolbox server.
-
-1. Download the latest version of Toolbox as a binary:
-
-    {{< notice tip >}}
-  Select the
-  [correct binary](https://github.com/googleapis/genai-toolbox/releases)
-  corresponding to your OS and CPU architecture.
-    {{< /notice >}}
-    <!-- {x-release-please-start-version} -->
-    ```bash
-    export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
-    curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/$OS/toolbox
-    ```
-    <!-- {x-release-please-end} -->
-
-1. Make the binary executable:
-
-    ```bash
-    chmod +x toolbox
-    ```
-
-1. Write the following into a `tools.yaml` file. Be sure to update any fields
-   such as `user`, `password`, or `database` that you may have customized in the
-   previous step.
-
-    {{< notice tip >}}
-  In practice, use environment variable replacement with the format ${ENV_NAME}
-  instead of hardcoding your secrets into the configuration file.
-    {{< /notice >}}
-
-    ```yaml
-    sources:
-      my-pg-source:
-        kind: postgres
-        host: 127.0.0.1
-        port: 5432
-        database: toolbox_db
-        user: ${USER_NAME}
-        password: ${PASSWORD}
-    tools:
-      search-hotels-by-name:
-        kind: postgres-sql
-        source: my-pg-source
-        description: Search for hotels based on name.
-        parameters:
-          - name: name
-            type: string
-            description: The name of the hotel.
-        statement: SELECT * FROM hotels WHERE name ILIKE '%' || $1 || '%';
-      search-hotels-by-location:
-        kind: postgres-sql
-        source: my-pg-source
-        description: Search for hotels based on location.
-        parameters:
-          - name: location
-            type: string
-            description: The location of the hotel.
-        statement: SELECT * FROM hotels WHERE location ILIKE '%' || $1 || '%';
-      book-hotel:
-        kind: postgres-sql
-        source: my-pg-source
-        description: >-
-           Book a hotel by its ID. If the hotel is successfully booked, returns a NULL, raises an error if not.
-        parameters:
-          - name: hotel_id
-            type: string
-            description: The ID of the hotel to book.
-        statement: UPDATE hotels SET booked = B'1' WHERE id = $1;
-      update-hotel:
-        kind: postgres-sql
-        source: my-pg-source
-        description: >-
-          Update a hotel's check-in and check-out dates by its ID. Returns a message
-          indicating  whether the hotel was successfully updated or not.
-        parameters:
-          - name: hotel_id
-            type: string
-            description: The ID of the hotel to update.
-          - name: checkin_date
-            type: string
-            description: The new check-in date of the hotel.
-          - name: checkout_date
-            type: string
-            description: The new check-out date of the hotel.
-        statement: >-
-          UPDATE hotels SET checkin_date = CAST($2 as date), checkout_date = CAST($3
-          as date) WHERE id = $1;
-      cancel-hotel:
-        kind: postgres-sql
-        source: my-pg-source
-        description: Cancel a hotel by its ID.
-        parameters:
-          - name: hotel_id
-            type: string
-            description: The ID of the hotel to cancel.
-        statement: UPDATE hotels SET booked = B'0' WHERE id = $1;
-   toolsets:
-      my-toolset:
-        - search-hotels-by-name
-        - search-hotels-by-location
-        - book-hotel
-        - update-hotel
-        - cancel-hotel
-    ```
-
-    For more info on tools, check out the `Resources` section of the docs.
-
-1. Run the Toolbox server, pointing to the `tools.yaml` file created earlier:
-
-    ```bash
-    ./toolbox --tools-file "tools.yaml"
-    ```
-
-    {{< notice note >}}
-    Toolbox enables dynamic reloading by default. To disable, use the
-    `--disable-reload` flag.
-    {{< /notice >}}
+{{< regionInclude "quickstart/shared/configure_toolbox.md" "configure_toolbox" >}}
 
 ## Step 3: Connect your agent to Toolbox
 
@@ -943,305 +691,23 @@ pip install google-genai
    code to create an agent:
     {{< tabpane persist=header >}}
 {{< tab header="ADK" lang="python" >}}
-from google.adk.agents import Agent
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.adk.artifacts.in_memory_artifact_service import InMemoryArtifactService
-from google.genai import types
-from toolbox_core import ToolboxSyncClient
 
-import asyncio
-import os
+{{< include "quickstart/python/adk/quickstart.py" >}}
 
-# TODO(developer): replace this with your Google API key
-
-os.environ['GOOGLE_API_KEY'] = 'your-api-key'
-
-async def main():
-  with ToolboxSyncClient("<http://127.0.0.1:5000>") as toolbox_client:
-
-      prompt = """
-        You're a helpful hotel assistant. You handle hotel searching, booking and
-        cancellations. When the user searches for a hotel, mention it's name, id,
-        location and price tier. Always mention hotel ids while performing any
-        searches. This is very important for any operations. For any bookings or
-        cancellations, please provide the appropriate confirmation. Be sure to
-        update checkin or checkout dates if mentioned by the user.
-        Don't ask for confirmations from the user.
-      """
-
-      root_agent = Agent(
-          model='gemini-2.0-flash-001',
-          name='hotel_agent',
-          description='A helpful AI assistant.',
-          instruction=prompt,
-          tools=toolbox_client.load_toolset("my-toolset"),
-      )
-
-      session_service = InMemorySessionService()
-      artifacts_service = InMemoryArtifactService()
-      session = await session_service.create_session(
-          state={}, app_name='hotel_agent', user_id='123'
-      )
-      runner = Runner(
-          app_name='hotel_agent',
-          agent=root_agent,
-          artifact_service=artifacts_service,
-          session_service=session_service,
-      )
-
-      queries = [
-          "Find hotels in Basel with Basel in its name.",
-          "Can you book the Hilton Basel for me?",
-          "Oh wait, this is too expensive. Please cancel it and book the Hyatt Regency instead.",
-          "My check in dates would be from April 10, 2024 to April 19, 2024.",
-      ]
-
-      for query in queries:
-          content = types.Content(role='user', parts=[types.Part(text=query)])
-          events = runner.run(session_id=session.id,
-                              user_id='123', new_message=content)
-
-          responses = (
-            part.text
-            for event in events
-            for part in event.content.parts
-            if part.text is not None
-          )
-
-          for text in responses:
-            print(text)
-
-asyncio.run(main())
 {{< /tab >}}
 {{< tab header="LangChain" lang="python" >}}
-import asyncio
 
-from langgraph.prebuilt import create_react_agent
+{{< include "quickstart/python/langchain/quickstart.py" >}}
 
-# TODO(developer): replace this with another import if needed
-
-from langchain_google_vertexai import ChatVertexAI
-
-# from langchain_google_genai import ChatGoogleGenerativeAI
-
-# from langchain_anthropic import ChatAnthropic
-
-from langgraph.checkpoint.memory import MemorySaver
-
-from toolbox_langchain import ToolboxClient
-
-prompt = """
-  You're a helpful hotel assistant. You handle hotel searching, booking and
-  cancellations. When the user searches for a hotel, mention it's name, id,
-  location and price tier. Always mention hotel ids while performing any
-  searches. This is very important for any operations. For any bookings or
-  cancellations, please provide the appropriate confirmation. Be sure to
-  update checkin or checkout dates if mentioned by the user.
-  Don't ask for confirmations from the user.
-"""
-
-queries = [
-    "Find hotels in Basel with Basel in its name.",
-    "Can you book the Hilton Basel for me?",
-    "Oh wait, this is too expensive. Please cancel it and book the Hyatt Regency instead.",
-    "My check in dates would be from April 10, 2024 to April 19, 2024.",
-]
-
-async def run_application():
-    # TODO(developer): replace this with another model if needed
-    model = ChatVertexAI(model_name="gemini-2.0-flash-001")
-    # model = ChatGoogleGenerativeAI(model="gemini-2.0-flash-001")
-    # model = ChatAnthropic(model="claude-3-5-sonnet-20240620")
-
-    # Load the tools from the Toolbox server
-    async with ToolboxClient("http://127.0.0.1:5000") as client:
-        tools = await client.aload_toolset()
-
-        agent = create_react_agent(model, tools, checkpointer=MemorySaver())
-
-        config = {"configurable": {"thread_id": "thread-1"}}
-        for query in queries:
-            inputs = {"messages": [("user", prompt + query)]}
-            response = agent.invoke(inputs, stream_mode="values", config=config)
-            print(response["messages"][-1].content)
-
-asyncio.run(run_application())
 {{< /tab >}}
 {{< tab header="LlamaIndex" lang="python" >}}
-import asyncio
-import os
 
-from llama_index.core.agent.workflow import AgentWorkflow
+{{< include "quickstart/python/llamaindex/quickstart.py" >}}
 
-from llama_index.core.workflow import Context
-
-# TODO(developer): replace this with another import if needed
-
-from llama_index.llms.google_genai import GoogleGenAI
-
-# from llama_index.llms.anthropic import Anthropic
-
-from toolbox_llamaindex import ToolboxClient
-
-prompt = """
-  You're a helpful hotel assistant. You handle hotel searching, booking and
-  cancellations. When the user searches for a hotel, mention it's name, id,
-  location and price tier. Always mention hotel ids while performing any
-  searches. This is very important for any operations. For any bookings or
-  cancellations, please provide the appropriate confirmation. Be sure to
-  update checkin or checkout dates if mentioned by the user.
-  Don't ask for confirmations from the user.
-"""
-
-queries = [
-    "Find hotels in Basel with Basel in its name.",
-    "Can you book the Hilton Basel for me?",
-    "Oh wait, this is too expensive. Please cancel it and book the Hyatt Regency instead.",
-    "My check in dates would be from April 10, 2024 to April 19, 2024.",
-]
-
-async def run_application():
-    # TODO(developer): replace this with another model if needed
-    llm = GoogleGenAI(
-        model="gemini-2.0-flash-001",
-        vertexai_config={"project": "project-id", "location": "us-central1"},
-    )
-    # llm = GoogleGenAI(
-    #     api_key=os.getenv("GOOGLE_API_KEY"),
-    #     model="gemini-2.0-flash-001",
-    # )
-    # llm = Anthropic(
-    #   model="claude-3-7-sonnet-latest",
-    #   api_key=os.getenv("ANTHROPIC_API_KEY")
-    # )
-
-    # Load the tools from the Toolbox server
-    async with ToolboxClient("http://127.0.0.1:5000") as client:
-        tools = await client.aload_toolset()
-
-        agent = AgentWorkflow.from_tools_or_functions(
-            tools,
-            llm=llm,
-            system_prompt=prompt,
-        )
-        ctx = Context(agent)
-        for query in queries:
-            response = await agent.run(user_msg=query, ctx=ctx)
-            print(f"---- {query} ----")
-            print(str(response))
-
-asyncio.run(run_application())
 {{< /tab >}}
 {{< tab header="Core" lang="python" >}}
-import asyncio
 
-from google import genai
-from google.genai.types import (
-    Content,
-    FunctionDeclaration,
-    GenerateContentConfig,
-    Part,
-    Tool,
-)
-
-from toolbox_core import ToolboxClient
-
-prompt = """
-  You're a helpful hotel assistant. You handle hotel searching, booking and
-  cancellations. When the user searches for a hotel, mention it's name, id,
-  location and price tier. Always mention hotel id while performing any
-  searches. This is very important for any operations. For any bookings or
-  cancellations, please provide the appropriate confirmation. Be sure to
-  update checkin or checkout dates if mentioned by the user.
-  Don't ask for confirmations from the user.
-"""
-
-queries = [
-    "Find hotels in Basel with Basel in its name.",
-    "Please book the hotel Hilton Basel for me.",
-    "This is too expensive. Please cancel it.",
-    "Please book Hyatt Regency for me",
-    "My check in dates for my booking would be from April 10, 2024 to April 19, 2024.",
-]
-
-async def run_application():
-    async with ToolboxClient("<http://127.0.0.1:5000>") as toolbox_client:
-
-        # The toolbox_tools list contains Python callables (functions/methods) designed for LLM tool-use
-        # integration. While this example uses Google's genai client, these callables can be adapted for
-        # various function-calling or agent frameworks. For easier integration with supported frameworks
-        # (https://github.com/googleapis/mcp-toolbox-python-sdk/tree/main/packages), use the
-        # provided wrapper packages, which handle framework-specific boilerplate.
-        toolbox_tools = await toolbox_client.load_toolset("my-toolset")
-        genai_client = genai.Client(
-            vertexai=True, project="project-id", location="us-central1"
-        )
-
-        genai_tools = [
-            Tool(
-                function_declarations=[
-                    FunctionDeclaration.from_callable_with_api_option(callable=tool)
-                ]
-            )
-            for tool in toolbox_tools
-        ]
-        history = []
-        for query in queries:
-            user_prompt_content = Content(
-                role="user",
-                parts=[Part.from_text(text=query)],
-            )
-            history.append(user_prompt_content)
-
-            response = genai_client.models.generate_content(
-                model="gemini-2.0-flash-001",
-                contents=history,
-                config=GenerateContentConfig(
-                    system_instruction=prompt,
-                    tools=genai_tools,
-                ),
-            )
-            history.append(response.candidates[0].content)
-            function_response_parts = []
-            for function_call in response.function_calls:
-                fn_name = function_call.name
-                # The tools are sorted alphabetically
-                if fn_name == "search-hotels-by-name":
-                    function_result = await toolbox_tools[3](**function_call.args)
-                elif fn_name == "search-hotels-by-location":
-                    function_result = await toolbox_tools[2](**function_call.args)
-                elif fn_name == "book-hotel":
-                    function_result = await toolbox_tools[0](**function_call.args)
-                elif fn_name == "update-hotel":
-                    function_result = await toolbox_tools[4](**function_call.args)
-                elif fn_name == "cancel-hotel":
-                    function_result = await toolbox_tools[1](**function_call.args)
-                else:
-                    raise ValueError("Function name not present.")
-                function_response = {"result": function_result}
-                function_response_part = Part.from_function_response(
-                    name=function_call.name,
-                    response=function_response,
-                )
-                function_response_parts.append(function_response_part)
-
-            if function_response_parts:
-                tool_response_content = Content(role="tool", parts=function_response_parts)
-                history.append(tool_response_content)
-
-            response2 = genai_client.models.generate_content(
-                model="gemini-2.0-flash-001",
-                contents=history,
-                config=GenerateContentConfig(
-                    tools=genai_tools,
-                ),
-            )
-            final_model_response_content = response2.candidates[0].content
-            history.append(final_model_response_content)
-            print(response2.text)
-
-asyncio.run(run_application())
+{{< include "quickstart/python/core/quickstart.py" >}}
 
 {{< /tab >}}
 {{< /tabpane >}}
@@ -1279,7 +745,7 @@ For more information, visit the [Python SDK repo](https://github.com/googleapis/
 
 
 # JS Quickstart (Local)
-How to get started running Toolbox locally with [JavaScript](https://github.com/googleapis/mcp-toolbox-sdk-js), PostgreSQL, and orchestration frameworks such as [LangChain](https://js.langchain.com/docs/introduction/), [GenkitJS](https://genkit.dev/docs/get-started/), and [LlamaIndex](https://ts.llamaindex.ai/).
+How to get started running Toolbox locally with [JavaScript](https://github.com/googleapis/mcp-toolbox-sdk-js), PostgreSQL, and orchestration frameworks such as [LangChain](https://js.langchain.com/docs/introduction/), [GenkitJS](https://genkit.dev/docs/get-started/),  [LlamaIndex](https://ts.llamaindex.ai/) and [GoogleGenAI](https://github.com/googleapis/js-genai).
 
 
 ## Before you begin
@@ -1289,265 +755,17 @@ This guide assumes you have already done the following:
 1. Installed [Node.js (v18 or higher)].
 1. Installed [PostgreSQL 16+ and the `psql` client][install-postgres].
 
-### Cloud Setup (Optional)
-
-If you plan to use **Google Cloud’s Vertex AI** with your agent (e.g., using
-Gemini or PaLM models), follow these one-time setup steps:
-
-1. [Install the Google Cloud CLI]
-1. [Set up Application Default Credentials (ADC)]
-1. Set your project and enable Vertex AI
-
-    ```bash
-    gcloud config set project YOUR_PROJECT_ID
-    gcloud services enable aiplatform.googleapis.com
-    ```
-
 [Node.js (v18 or higher)]: https://nodejs.org/
 [install-postgres]: https://www.postgresql.org/download/
-[Install the Google Cloud CLI]: https://cloud.google.com/sdk/docs/install
-[Set up Application Default Credentials (ADC)]:
-    https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment
+
+### Cloud Setup (Optional)
+{{< regionInclude "quickstart/shared/cloud_setup.md" "cloud_setup" >}}
 
 ## Step 1: Set up your database
-
-In this section, we will create a database, insert some data that needs to be
-accessed by our agent, and create a database user for Toolbox to connect with.
-
-1. Connect to postgres using the `psql` command:
-
-    ```bash
-    psql -h 127.0.0.1 -U postgres
-    ```
-
-    Here, `postgres` denotes the default postgres superuser.
-
-    {{< notice info >}}
-
-#### **Having trouble connecting?**
-
-* **Password Prompt:** If you are prompted for a password for the `postgres`
-  user and do not know it (or a blank password doesn't work), your PostgreSQL
-  installation might require a password or a different authentication method.
-* **`FATAL: role "postgres" does not exist`:** This error means the default
-  `postgres` superuser role isn't available under that name on your system.
-* **`Connection refused`:** Ensure your PostgreSQL server is actually running.
-  You can typically check with `sudo systemctl status postgresql` and start it
-  with `sudo systemctl start postgresql` on Linux systems.
-
-<br/>
-
-#### **Common Solution**
-
-For password issues or if the `postgres` role seems inaccessible directly, try
-switching to the `postgres` operating system user first. This user often has
-permission to connect without a password for local connections (this is called
-peer authentication).
-
-```bash
-sudo -i -u postgres
-psql -h 127.0.0.1
-```
-
-Once you are in the `psql` shell using this method, you can proceed with the
-database creation steps below. Afterwards, type `\q` to exit `psql`, and then
-`exit` to return to your normal user shell.
-
-If desired, once connected to `psql` as the `postgres` OS user, you can set a
-password for the `postgres` *database* user using: `ALTER USER postgres WITH
-PASSWORD 'your_chosen_password';`. This would allow direct connection with `-U
-postgres` and a password next time.
-    {{< /notice >}}
-
-1. Create a new database and a new user:
-
-    {{< notice tip >}}
-  For a real application, it's best to follow the principle of least permission
-  and only grant the privileges your application needs.
-    {{< /notice >}}
-
-    ```sql
-      CREATE USER toolbox_user WITH PASSWORD 'my-password';
-
-      CREATE DATABASE toolbox_db;
-      GRANT ALL PRIVILEGES ON DATABASE toolbox_db TO toolbox_user;
-
-      ALTER DATABASE toolbox_db OWNER TO toolbox_user;
-    ```
-
-1. End the database session:
-
-    ```bash
-    \q
-    ```
-
-    (If you used `sudo -i -u postgres` and then `psql`, remember you might also
-    need to type `exit` after `\q` to leave the `postgres` user's shell
-    session.)
-
-1. Connect to your database with your new user:
-
-    ```bash
-    psql -h 127.0.0.1 -U toolbox_user -d toolbox_db
-    ```
-
-1. Create a table using the following command:
-
-    ```sql
-    CREATE TABLE hotels(
-      id            INTEGER NOT NULL PRIMARY KEY,
-      name          VARCHAR NOT NULL,
-      location      VARCHAR NOT NULL,
-      price_tier    VARCHAR NOT NULL,
-      checkin_date  DATE    NOT NULL,
-      checkout_date DATE    NOT NULL,
-      booked        BIT     NOT NULL
-    );
-    ```
-
-1. Insert data into the table.
-
-    ```sql
-    INSERT INTO hotels(id, name, location, price_tier, checkin_date, checkout_date, booked)
-    VALUES
-      (1, 'Hilton Basel', 'Basel', 'Luxury', '2024-04-22', '2024-04-20', B'0'),
-      (2, 'Marriott Zurich', 'Zurich', 'Upscale', '2024-04-14', '2024-04-21', B'0'),
-      (3, 'Hyatt Regency Basel', 'Basel', 'Upper Upscale', '2024-04-02', '2024-04-20', B'0'),
-      (4, 'Radisson Blu Lucerne', 'Lucerne', 'Midscale', '2024-04-24', '2024-04-05', B'0'),
-      (5, 'Best Western Bern', 'Bern', 'Upper Midscale', '2024-04-23', '2024-04-01', B'0'),
-      (6, 'InterContinental Geneva', 'Geneva', 'Luxury', '2024-04-23', '2024-04-28', B'0'),
-      (7, 'Sheraton Zurich', 'Zurich', 'Upper Upscale', '2024-04-27', '2024-04-02', B'0'),
-      (8, 'Holiday Inn Basel', 'Basel', 'Upper Midscale', '2024-04-24', '2024-04-09', B'0'),
-      (9, 'Courtyard Zurich', 'Zurich', 'Upscale', '2024-04-03', '2024-04-13', B'0'),
-      (10, 'Comfort Inn Bern', 'Bern', 'Midscale', '2024-04-04', '2024-04-16', B'0');
-    ```
-
-1. End the database session:
-
-    ```bash
-    \q
-    ```
+{{< regionInclude "quickstart/shared/database_setup.md" "database_setup" >}}
 
 ## Step 2: Install and configure Toolbox
-
-In this section, we will download Toolbox, configure our tools in a
-`tools.yaml`, and then run the Toolbox server.
-
-1. Download the latest version of Toolbox as a binary:
-
-    {{< notice tip >}}
-  Select the
-  [correct binary](https://github.com/googleapis/genai-toolbox/releases)
-  corresponding to your OS and CPU architecture.
-    {{< /notice >}}
-    <!-- {x-release-please-start-version} -->
-    ```bash
-    export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
-    curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/$OS/toolbox
-    ```
-    <!-- {x-release-please-end} -->
-
-1. Make the binary executable:
-
-    ```bash
-    chmod +x toolbox
-    ```
-
-1. Write the following into a `tools.yaml` file. Be sure to update any fields
-   such as `user`, `password`, or `database` that you may have customized in the
-   previous step.
-
-    {{< notice tip >}}
-  In practice, use environment variable replacement with the format ${ENV_NAME}
-  instead of hardcoding your secrets into the configuration file.
-    {{< /notice >}}
-
-    ```yaml
-    sources:
-      my-pg-source:
-        kind: postgres
-        host: 127.0.0.1
-        port: 5432
-        database: toolbox_db
-        user: ${USER_NAME}
-        password: ${PASSWORD}
-    tools:
-      search-hotels-by-name:
-        kind: postgres-sql
-        source: my-pg-source
-        description: Search for hotels based on name.
-        parameters:
-          - name: name
-            type: string
-            description: The name of the hotel.
-        statement: SELECT * FROM hotels WHERE name ILIKE '%' || $1 || '%';
-      search-hotels-by-location:
-        kind: postgres-sql
-        source: my-pg-source
-        description: Search for hotels based on location.
-        parameters:
-          - name: location
-            type: string
-            description: The location of the hotel.
-        statement: SELECT * FROM hotels WHERE location ILIKE '%' || $1 || '%';
-      book-hotel:
-        kind: postgres-sql
-        source: my-pg-source
-        description: >-
-           Book a hotel by its ID. If the hotel is successfully booked, returns a NULL, raises an error if not.
-        parameters:
-          - name: hotel_id
-            type: string
-            description: The ID of the hotel to book.
-        statement: UPDATE hotels SET booked = B'1' WHERE id = $1;
-      update-hotel:
-        kind: postgres-sql
-        source: my-pg-source
-        description: >-
-          Update a hotel's check-in and check-out dates by its ID. Returns a message
-          indicating  whether the hotel was successfully updated or not.
-        parameters:
-          - name: hotel_id
-            type: string
-            description: The ID of the hotel to update.
-          - name: checkin_date
-            type: string
-            description: The new check-in date of the hotel.
-          - name: checkout_date
-            type: string
-            description: The new check-out date of the hotel.
-        statement: >-
-          UPDATE hotels SET checkin_date = CAST($2 as date), checkout_date = CAST($3
-          as date) WHERE id = $1;
-      cancel-hotel:
-        kind: postgres-sql
-        source: my-pg-source
-        description: Cancel a hotel by its ID.
-        parameters:
-          - name: hotel_id
-            type: string
-            description: The ID of the hotel to cancel.
-        statement: UPDATE hotels SET booked = B'0' WHERE id = $1;
-   toolsets:
-      my-toolset:
-        - search-hotels-by-name
-        - search-hotels-by-location
-        - book-hotel
-        - update-hotel
-        - cancel-hotel
-    ```
-
-    For more info on tools, check out the `Resources` section of the docs.
-
-1. Run the Toolbox server, pointing to the `tools.yaml` file created earlier:
-
-    ```bash
-    ./toolbox --tools-file "tools.yaml"
-    ```
-
-  {{< notice note >}}
-    Toolbox enables dynamic reloading by default. To disable, use the `--disable-reload` flag.
-  {{< /notice >}}
+{{< regionInclude "quickstart/shared/configure_toolbox.md" "configure_toolbox" >}}
 
 ## Step 3: Connect your agent to Toolbox
 
@@ -1578,6 +796,9 @@ npm install genkit @genkit-ai/googleai
 {{< tab header="LlamaIndex" lang="bash" >}}
 npm install llamaindex @llamaindex/google @llamaindex/workflow
 {{< /tab >}}
+{{< tab header="GoogleGenAI" lang="bash" >}}
+npm install @google/genai 
+{{< /tab >}}
 {{< /tabpane >}}
 
 1. Create a new file named `hotelAgent.js` and copy the following code to create an agent:
@@ -1585,259 +806,25 @@ npm install llamaindex @llamaindex/google @llamaindex/workflow
     {{< tabpane persist=header >}}
 {{< tab header="LangChain" lang="js" >}}
 
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { ToolboxClient } from "@toolbox-sdk/core";
-import { tool } from "@langchain/core/tools";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { MemorySaver } from "@langchain/langgraph";
-
-// Replace it with your API key
-process.env.GOOGLE_API_KEY = 'your-api-key';
-
-const prompt = `
-You're a helpful hotel assistant. You handle hotel searching, booking, and
-cancellations. When the user searches for a hotel, mention its name, id,
-location and price tier. Always mention hotel ids while performing any
-searches. This is very important for any operations. For any bookings or
-cancellations, please provide the appropriate confirmation. Be sure to
-update checkin or checkout dates if mentioned by the user.
-Don't ask for confirmations from the user.
-`;
-
-const queries = [
-  "Find hotels in Basel with Basel in its name.",
-  "Can you book the Hilton Basel for me?",
-  "Oh wait, this is too expensive. Please cancel it and book the Hyatt Regency instead.",
-  "My check in dates would be from April 10, 2024 to April 19, 2024.",
-];
-
-async function runApplication() {
-  const model = new ChatGoogleGenerativeAI({
-    model: "gemini-2.0-flash",
-  });
-
-  const client = new ToolboxClient("http://127.0.0.1:5000");
-  const toolboxTools = await client.loadToolset("my-toolset");
-
-  // Define the basics of the tool: name, description, schema and core logic
-  const getTool = (toolboxTool) => tool(toolboxTool, {
-    name: toolboxTool.getName(),
-    description: toolboxTool.getDescription(),
-    schema: toolboxTool.getParamSchema()
-  });
-  const tools = toolboxTools.map(getTool);
-
-  const agent = createReactAgent({
-    llm: model,
-    tools: tools,
-    checkpointer: new MemorySaver(),
-    systemPrompt: prompt,
-  });
-
-  const langGraphConfig = {
-    configurable: {
-        thread_id: "test-thread",
-    },
-  };
-
-  for (const query of queries) {
-    const agentOutput = await agent.invoke(
-    {
-        messages: [
-        {
-            role: "user",
-            content: query,
-        },
-        ],
-        verbose: true,
-    },
-    langGraphConfig
-    );
-    const response = agentOutput.messages[agentOutput.messages.length - 1].content;
-    console.log(response);
-  }
-}
-
-runApplication()
-  .catch(console.error)
-  .finally(() => console.log("\nApplication finished."));
+{{< include "quickstart/js/langchain/quickstart.js" >}}
 
 {{< /tab >}}
 
 {{< tab header="GenkitJS" lang="js" >}}
 
-import { ToolboxClient } from "@toolbox-sdk/core";
-import { genkit } from "genkit";
-import { googleAI } from '@genkit-ai/googleai';
+{{< include "quickstart/js/genkit/quickstart.js" >}}
 
-// Replace it with your API key
-process.env.GOOGLE_API_KEY = 'your-api-key';
-
-const systemPrompt = `
-You're a helpful hotel assistant. You handle hotel searching, booking, and
-cancellations. When the user searches for a hotel, mention its name, id,
-location and price tier. Always mention hotel ids while performing any
-searches. This is very important for any operations. For any bookings or
-cancellations, please provide the appropriate confirmation. Be sure to
-update checkin or checkout dates if mentioned by the user.
-Don't ask for confirmations from the user.
-`;
-
-const queries = [
-  "Find hotels in Basel with Basel in its name.",
-  "Can you book the Hilton Basel for me?",
-  "Oh wait, this is too expensive. Please cancel it and book the Hyatt Regency instead.",
-  "My check in dates would be from April 10, 2024 to April 19, 2024.",
-];
-
-async function run() {
-  const toolboxClient = new ToolboxClient("http://127.0.0.1:5000");
-
-  const ai = genkit({
-    plugins: [
-      googleAI({
-        apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
-      })
-    ],
-    model: googleAI.model('gemini-2.0-flash'),
-  });
-
-  const toolboxTools = await toolboxClient.loadToolset("my-toolset");
-  const toolMap = Object.fromEntries(
-    toolboxTools.map((tool) => {
-      const definedTool = ai.defineTool(
-        {
-          name: tool.getName(),
-          description: tool.getDescription(),
-          inputSchema: tool.getParamSchema(),
-        },
-        tool
-      );
-      return [tool.getName(), definedTool];
-    })
-  );
-  const tools = Object.values(toolMap);
-
-  let conversationHistory = [{ role: "system", content: [{ text: systemPrompt }] }];
-
-  for (const query of queries) {
-    conversationHistory.push({ role: "user", content: [{ text: query }] });
-    const response = await ai.generate({
-      messages: conversationHistory,
-      tools: tools,
-    });
-    conversationHistory.push(response.message);
-
-    const toolRequests = response.toolRequests;
-    if (toolRequests?.length > 0) {
-      // Execute tools concurrently and collect their responses.
-      const toolResponses = await Promise.all(
-        toolRequests.map(async (call) => {
-          try {
-            const toolOutput = await toolMap[call.name].invoke(call.input);
-            return { role: "tool", content: [{ toolResponse: { name: call.name, output: toolOutput } }] };
-          } catch (e) {
-            console.error(`Error executing tool ${call.name}:`, e);
-            return { role: "tool", content: [{ toolResponse: { name: call.name, output: { error: e.message } } }] };
-          }
-        })
-      );
-
-      conversationHistory.push(...toolResponses);
-
-      // Call the AI again with the tool results.
-      response = await ai.generate({ messages: conversationHistory, tools });
-      conversationHistory.push(response.message);
-    }
-
-    console.log(response.text);
-  }
-}
-
-run();
 {{< /tab >}}
 
 {{< tab header="LlamaIndex" lang="js" >}}
 
-import { gemini, GEMINI_MODEL } from "@llamaindex/google";
-import { agent } from "@llamaindex/workflow";
-import { createMemory, staticBlock, tool } from "llamaindex";
-import { ToolboxClient } from "@toolbox-sdk/core";
+{{< include "quickstart/js/llamaindex/quickstart.js" >}}
 
-const TOOLBOX_URL = "http://127.0.0.1:5000"; // Update if needed
-process.env.GOOGLE_API_KEY = 'your-api-key'; // Replace it with your API key
+{{< /tab >}}
 
-const prompt = `
+{{< tab header="GoogleGenAI" lang="js" >}}
 
-You're a helpful hotel assistant. You handle hotel searching, booking and cancellations.
-When the user searches for a hotel, mention its name, id, location and price tier.
-Always mention hotel ids while performing any searches â€” this is very important for operations.
-For any bookings or cancellations, please provide the appropriate confirmation.
-Update check-in or check-out dates if mentioned by the user.
-Don't ask for confirmations from the user.
-
-`;
-
-const queries = [
-  "Find hotels in Basel with Basel in its name.",
-  "Can you book the Hilton Basel for me?",
-  "Oh wait, this is too expensive. Please cancel it and book the Hyatt Regency instead.",
-  "My check in dates would be from April 10, 2024 to April 19, 2024.",
-];
-
-async function main() {
-  // Connect to MCP Toolbox
-  const client = new ToolboxClient(TOOLBOX_URL);
-  const toolboxTools = await client.loadToolset("my-toolset");
-  const tools = toolboxTools.map((toolboxTool) => {
-    return tool({
-      name: toolboxTool.getName(),
-      description: toolboxTool.getDescription(),
-      parameters: toolboxTool.getParamSchema(),
-      execute: toolboxTool,
-    });
-  });
-
-  // Initialize LLM
-  const llm = gemini({
-    model: GEMINI_MODEL.GEMINI_2_0_FLASH,
-    apiKey: process.env.GOOGLE_API_KEY,
-  });
-
-  const memory = createMemory({
-    memoryBlocks: [
-      staticBlock({
-        content: prompt,
-      }),
-    ],
-  });
-
-  // Create the Agent
-  const myAgent = agent({
-    tools: tools,
-    llm,
-    memory,
-    systemPrompt: prompt,
-  });
-
-  for (const query of queries) {
-    const result = await myAgent.run(query);
-    const output = result.data.result;
-
-    console.log(`\nUser: ${query}`);
-    if (typeof output === "string") {
-      console.log(output.trim());
-    } else if (typeof output === "object" && "text" in output) {
-      console.log(output.text.trim());
-    } else {
-      console.log(JSON.stringify(output));
-    }
-  }
-  //You may observe some extra logs during execution due to the run method provided by Llama.
-  console.log("Agent run finished.");
-}
-
-main();
+{{< include "quickstart/js/genAI/quickstart.js" >}}
 
 {{< /tab >}}
 
@@ -1865,266 +852,17 @@ This guide assumes you have already done the following:
 1. Installed [Go (v1.24.2 or higher)].
 1. Installed [PostgreSQL 16+ and the `psql` client][install-postgres].
 
-### Cloud Setup (Optional)
-
-If you plan to use **Google Cloud’s Vertex AI** with your agent (e.g., using
-Gemini or PaLM models), follow these one-time setup steps:
-
-1. [Install the Google Cloud CLI]
-1. [Set up Application Default Credentials (ADC)]
-1. Set your project and enable Vertex AI
-
-    ```bash
-    gcloud config set project YOUR_PROJECT_ID
-    gcloud services enable aiplatform.googleapis.com
-    ```
-
 [Go (v1.24.2 or higher)]: https://go.dev/doc/install
 [install-postgres]: https://www.postgresql.org/download/
-[Install the Google Cloud CLI]: https://cloud.google.com/sdk/docs/install
-[Set up Application Default Credentials (ADC)]:
-    https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment
+
+### Cloud Setup (Optional)
+{{< regionInclude "quickstart/shared/cloud_setup.md" "cloud_setup" >}}
 
 ## Step 1: Set up your database
-
-In this section, we will create a database, insert some data that needs to be
-accessed by our agent, and create a database user for Toolbox to connect with.
-
-1. Connect to postgres using the `psql` command:
-
-    ```bash
-    psql -h 127.0.0.1 -U postgres
-    ```
-
-    Here, `postgres` denotes the default postgres superuser.
-
-    {{< notice info >}}
-
-#### **Having trouble connecting?**
-
-* **Password Prompt:** If you are prompted for a password for the `postgres`
-  user and do not know it (or a blank password doesn't work), your PostgreSQL
-  installation might require a password or a different authentication method.
-* **`FATAL: role "postgres" does not exist`:** This error means the default
-  `postgres` superuser role isn't available under that name on your system.
-* **`Connection refused`:** Ensure your PostgreSQL server is actually running.
-  You can typically check with `sudo systemctl status postgresql` and start it
-  with `sudo systemctl start postgresql` on Linux systems.
-
-<br/>
-
-#### **Common Solution**
-
-For password issues or if the `postgres` role seems inaccessible directly, try
-switching to the `postgres` operating system user first. This user often has
-permission to connect without a password for local connections (this is called
-peer authentication).
-
-```bash
-sudo -i -u postgres
-psql -h 127.0.0.1
-```
-
-Once you are in the `psql` shell using this method, you can proceed with the
-database creation steps below. Afterwards, type `\q` to exit `psql`, and then
-`exit` to return to your normal user shell.
-
-If desired, once connected to `psql` as the `postgres` OS user, you can set a
-password for the `postgres` *database* user using: `ALTER USER postgres WITH
-PASSWORD 'your_chosen_password';`. This would allow direct connection with `-U
-postgres` and a password next time.
-    {{< /notice >}}
-
-1. Create a new database and a new user:
-
-    {{< notice tip >}}
-  For a real application, it's best to follow the principle of least permission
-  and only grant the privileges your application needs.
-    {{< /notice >}}
-
-    ```sql
-      CREATE USER toolbox_user WITH PASSWORD 'my-password';
-
-      CREATE DATABASE toolbox_db;
-      GRANT ALL PRIVILEGES ON DATABASE toolbox_db TO toolbox_user;
-
-      ALTER DATABASE toolbox_db OWNER TO toolbox_user;
-    ```
-
-1. End the database session:
-
-    ```bash
-    \q
-    ```
-
-    (If you used `sudo -i -u postgres` and then `psql`, remember you might also
-    need to type `exit` after `\q` to leave the `postgres` user's shell
-    session.)
-
-1. Connect to your database with your new user:
-
-    ```bash
-    psql -h 127.0.0.1 -U toolbox_user -d toolbox_db
-    ```
-
-1. Create a table using the following command:
-
-    ```sql
-    CREATE TABLE hotels(
-      id            INTEGER NOT NULL PRIMARY KEY,
-      name          VARCHAR NOT NULL,
-      location      VARCHAR NOT NULL,
-      price_tier    VARCHAR NOT NULL,
-      checkin_date  DATE    NOT NULL,
-      checkout_date DATE    NOT NULL,
-      booked        BIT     NOT NULL
-    );
-    ```
-
-1. Insert data into the table.
-
-    ```sql
-    INSERT INTO hotels(id, name, location, price_tier, checkin_date, checkout_date, booked)
-    VALUES
-      (1, 'Hilton Basel', 'Basel', 'Luxury', '2024-04-22', '2024-04-20', B'0'),
-      (2, 'Marriott Zurich', 'Zurich', 'Upscale', '2024-04-14', '2024-04-21', B'0'),
-      (3, 'Hyatt Regency Basel', 'Basel', 'Upper Upscale', '2024-04-02', '2024-04-20', B'0'),
-      (4, 'Radisson Blu Lucerne', 'Lucerne', 'Midscale', '2024-04-24', '2024-04-05', B'0'),
-      (5, 'Best Western Bern', 'Bern', 'Upper Midscale', '2024-04-23', '2024-04-01', B'0'),
-      (6, 'InterContinental Geneva', 'Geneva', 'Luxury', '2024-04-23', '2024-04-28', B'0'),
-      (7, 'Sheraton Zurich', 'Zurich', 'Upper Upscale', '2024-04-27', '2024-04-02', B'0'),
-      (8, 'Holiday Inn Basel', 'Basel', 'Upper Midscale', '2024-04-24', '2024-04-09', B'0'),
-      (9, 'Courtyard Zurich', 'Zurich', 'Upscale', '2024-04-03', '2024-04-13', B'0'),
-      (10, 'Comfort Inn Bern', 'Bern', 'Midscale', '2024-04-04', '2024-04-16', B'0');
-    ```
-
-1. End the database session:
-
-    ```bash
-    \q
-    ```
+{{< regionInclude "quickstart/shared/database_setup.md" "database_setup" >}}
 
 ## Step 2: Install and configure Toolbox
-
-In this section, we will download Toolbox, configure our tools in a
-`tools.yaml`, and then run the Toolbox server.
-
-1. Download the latest version of Toolbox as a binary:
-
-    {{< notice tip >}}
-  Select the
-  [correct binary](https://github.com/googleapis/genai-toolbox/releases)
-  corresponding to your OS and CPU architecture.
-    {{< /notice >}}
-    <!-- {x-release-please-start-version} -->
-    ```bash
-    export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
-    curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/$OS/toolbox
-    ```
-    <!-- {x-release-please-end} -->
-
-1. Make the binary executable:
-
-    ```bash
-    chmod +x toolbox
-    ```
-
-1. Write the following into a `tools.yaml` file. Be sure to update any fields
-   such as `user`, `password`, or `database` that you may have customized in the
-   previous step.
-
-    {{< notice tip >}}
-  In practice, use environment variable replacement with the format ${ENV_NAME}
-  instead of hardcoding your secrets into the configuration file.
-    {{< /notice >}}
-
-    ```yaml
-    sources:
-      my-pg-source:
-        kind: postgres
-        host: 127.0.0.1
-        port: 5432
-        database: toolbox_db
-        user: ${USER_NAME}
-        password: ${PASSWORD}
-    tools:
-      search-hotels-by-name:
-        kind: postgres-sql
-        source: my-pg-source
-        description: Search for hotels based on name.
-        parameters:
-          - name: name
-            type: string
-            description: The name of the hotel.
-        statement: SELECT * FROM hotels WHERE name ILIKE '%' || $1 || '%';
-      search-hotels-by-location:
-        kind: postgres-sql
-        source: my-pg-source
-        description: Search for hotels based on location.
-        parameters:
-          - name: location
-            type: string
-            description: The location of the hotel.
-        statement: SELECT * FROM hotels WHERE location ILIKE '%' || $1 || '%';
-      book-hotel:
-        kind: postgres-sql
-        source: my-pg-source
-        description: >-
-           Book a hotel by its ID. If the hotel is successfully booked, returns a NULL, raises an error if not.
-        parameters:
-          - name: hotel_id
-            type: string
-            description: The ID of the hotel to book.
-        statement: UPDATE hotels SET booked = B'1' WHERE id = $1;
-      update-hotel:
-        kind: postgres-sql
-        source: my-pg-source
-        description: >-
-          Update a hotel's check-in and check-out dates by its ID. Returns a message
-          indicating  whether the hotel was successfully updated or not.
-        parameters:
-          - name: hotel_id
-            type: string
-            description: The ID of the hotel to update.
-          - name: checkin_date
-            type: string
-            description: The new check-in date of the hotel.
-          - name: checkout_date
-            type: string
-            description: The new check-out date of the hotel.
-        statement: >-
-          UPDATE hotels SET checkin_date = CAST($2 as date), checkout_date = CAST($3
-          as date) WHERE id = $1;
-      cancel-hotel:
-        kind: postgres-sql
-        source: my-pg-source
-        description: Cancel a hotel by its ID.
-        parameters:
-          - name: hotel_id
-            type: string
-            description: The ID of the hotel to cancel.
-        statement: UPDATE hotels SET booked = B'0' WHERE id = $1;
-   toolsets:
-      my-toolset:
-        - search-hotels-by-name
-        - search-hotels-by-location
-        - book-hotel
-        - update-hotel
-        - cancel-hotel
-    ```
-
-    For more info on tools, check out the `Resources` section of the docs.
-
-1. Run the Toolbox server, pointing to the `tools.yaml` file created earlier:
-
-    ```bash
-    ./toolbox --tools-file "tools.yaml"
-    ```
-
-  {{< notice note >}}
-    Toolbox enables dynamic reloading by default. To disable, use the
-    `--disable-reload` flag.
-  {{< /notice >}}
+{{< regionInclude "quickstart/shared/configure_toolbox.md" "configure_toolbox" >}}
 
 ## Step 3: Connect your agent to Toolbox
 
@@ -2150,613 +888,28 @@ from Toolbox.
     {{< tabpane persist=header >}}
 {{< tab header="LangChain Go" lang="go" >}}
 
-package main
+{{< include "quickstart/go/langchain/quickstart.go" >}}
 
-import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log"
-	"os"
-
-	"github.com/googleapis/mcp-toolbox-sdk-go/core"
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/googleai"
-)
-
-// ConvertToLangchainTool converts a generic core.ToolboxTool into a LangChainGo llms.Tool.
-func ConvertToLangchainTool(toolboxTool *core.ToolboxTool) llms.Tool {
-
-	// Fetch the tool's input schema
-	inputschema, err := toolboxTool.InputSchema()
-	if err != nil {
-		return llms.Tool{}
-	}
-
-	var paramsSchema map[string]any
-	_ = json.Unmarshal(inputschema, &paramsSchema)
-
-	// Convert into LangChain's llms.Tool
-	return llms.Tool{
-		Type: "function",
-		Function: &llms.FunctionDefinition{
-			Name:        toolboxTool.Name(),
-			Description: toolboxTool.Description(),
-			Parameters:  paramsSchema,
-		},
-	}
-}
-
-const systemPrompt = `
-You're a helpful hotel assistant. You handle hotel searching, booking, and
-cancellations. When the user searches for a hotel, mention its name, id,
-location and price tier. Always mention hotel ids while performing any
-searches. This is very important for any operations. For any bookings or
-cancellations, please provide the appropriate confirmation. Be sure to
-update checkin or checkout dates if mentioned by the user.
-Don't ask for confirmations from the user.
-`
-
-var queries = []string{
-	"Find hotels in Basel with Basel in its name.",
-	"Can you book the hotel Hilton Basel for me?",
-	"Oh wait, this is too expensive. Please cancel it.",
-	"Please book the Hyatt Regency instead.",
-	"My check in dates would be from April 10, 2024 to April 19, 2024.",
-}
-
-func main() {
-	genaiKey := os.Getenv("GOOGLE_API_KEY")
-	toolboxURL := "http://localhost:5000"
-	ctx := context.Background()
-
-	// Initialize the Google AI client (LLM).
-	llm, err := googleai.New(ctx, googleai.WithAPIKey(genaiKey), googleai.WithDefaultModel("gemini-1.5-flash"))
-	if err != nil {
-		log.Fatalf("Failed to create Google AI client: %v", err)
-	}
-
-	// Initialize the MCP Toolbox client.
-	toolboxClient, err := core.NewToolboxClient(toolboxURL)
-	if err != nil {
-		log.Fatalf("Failed to create Toolbox client: %v", err)
-	}
-
-	// Load the tool using the MCP Toolbox SDK.
-	tools, err := toolboxClient.LoadToolset("my-toolset", ctx)
-	if err != nil {
-		log.Fatalf("Failed to load tools: %v\nMake sure your Toolbox server is running and the tool is configured.", err)
-	}
-
-	toolsMap := make(map[string]*core.ToolboxTool, len(tools))
-
-	langchainTools := make([]llms.Tool, len(tools))
-	// Convert the loaded ToolboxTools into the format LangChainGo requires.
-	for i, tool := range tools {
-		langchainTools[i] = ConvertToLangchainTool(tool)
-		toolsMap[tool.Name()] = tool
-	}
-
-	// Start the conversation history.
-	messageHistory := []llms.MessageContent{
-		llms.TextParts(llms.ChatMessageTypeSystem, systemPrompt),
-	}
-
-	for _, query := range queries {
-		messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, query))
-
-		// Make the first call to the LLM, making it aware of the tool.
-		resp, err := llm.GenerateContent(ctx, messageHistory, llms.WithTools(langchainTools))
-		if err != nil {
-			log.Fatalf("LLM call failed: %v", err)
-		}
-		respChoice := resp.Choices[0]
-
-		assistantResponse := llms.TextParts(llms.ChatMessageTypeAI, respChoice.Content)
-		for _, tc := range respChoice.ToolCalls {
-			assistantResponse.Parts = append(assistantResponse.Parts, tc)
-		}
-		messageHistory = append(messageHistory, assistantResponse)
-
-		// Process each tool call requested by the model.
-		for _, tc := range respChoice.ToolCalls {
-			toolName := tc.FunctionCall.Name
-			tool := toolsMap[toolName]
-			var args map[string]any
-			if err := json.Unmarshal([]byte(tc.FunctionCall.Arguments), &args); err != nil {
-				log.Fatalf("Failed to unmarshal arguments for tool '%s': %v", toolName, err)
-			}
-			toolResult, err := tool.Invoke(ctx, args)
-			if err != nil {
-				log.Fatalf("Failed to execute tool '%s': %v", toolName, err)
-			}
-			if toolResult == "" || toolResult == nil {
-				toolResult = "Operation completed successfully with no specific return value."
-			}
-
-			// Create the tool call response message and add it to the history.
-			toolResponse := llms.MessageContent{
-				Role: llms.ChatMessageTypeTool,
-				Parts: []llms.ContentPart{
-					llms.ToolCallResponse{
-						Name:    toolName,
-						Content: fmt.Sprintf("%v", toolResult),
-					},
-				},
-			}
-			messageHistory = append(messageHistory, toolResponse)
-		}
-		finalResp, err := llm.GenerateContent(ctx, messageHistory)
-		if err != nil {
-			log.Fatalf("Final LLM call failed after tool execution: %v", err)
-		}
-
-		// Add the final textual response from the LLM to the history
-		messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeAI, finalResp.Choices[0].Content))
-
-		fmt.Println(finalResp.Choices[0].Content)
-
-	}
-
-}
 
 {{< /tab >}}
 
 {{< tab header="Genkit Go" lang="go" >}}
 
-package main
+{{< include "quickstart/go/genkit/quickstart.go" >}}
 
-import (
-	"context"
-	"fmt"
-	"log"
-
-	"github.com/googleapis/mcp-toolbox-sdk-go/core"
-	"github.com/googleapis/mcp-toolbox-sdk-go/tbgenkit"
-
-	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
-)
-
-const systemPrompt = `
-You're a helpful hotel assistant. You handle hotel searching, booking, and
-cancellations. When the user searches for a hotel, mention its name, id,
-location and price tier. Always mention hotel ids while performing any
-searches. This is very important for any operations. For any bookings or
-cancellations, please provide the appropriate confirmation. Be sure to
-update checkin or checkout dates if mentioned by the user.
-Don't ask for confirmations from the user.
-`
-
-var queries = []string{
-	"Find hotels in Basel with Basel in its name.",
-	"Can you book the hotel Hilton Basel for me?",
-	"Oh wait, this is too expensive. Please cancel it and book the Hyatt Regency instead.",
-	"My check in dates would be from April 10, 2024 to April 19, 2024.",
-}
-
-func main() {
-	ctx := context.Background()
-
-	// Create Toolbox Client
-	toolboxClient, err := core.NewToolboxClient("http://127.0.0.1:5000")
-	if err != nil {
-		log.Fatalf("Failed to create Toolbox client: %v", err)
-	}
-
-	// Load the tools using the MCP Toolbox SDK.
-	tools, err := toolboxClient.LoadToolset("my-toolset", ctx)
-	if err != nil {
-		log.Fatalf("Failed to load tools: %v\nMake sure your Toolbox server is running and the tool is configured.", err)
-	}
-
-	// Initialize Genkit
-	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.GoogleAI{}),
-		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
-	)
-	if err != nil {
-		log.Fatalf("Failed to init genkit: %v\n", err)
-	}
-
-	// Create a conversation history
-	conversationHistory := []*ai.Message{
-		ai.NewSystemTextMessage(systemPrompt),
-	}
-
-	// Convert your tool to a Genkit tool.
-	genkitTools := make([]ai.Tool, len(tools))
-	for i, tool := range tools {
-		newTool, err := tbgenkit.ToGenkitTool(tool, g)
-		if err != nil {
-			log.Fatalf("Failed to convert tool: %v\n", err)
-		}
-		genkitTools[i] = newTool
-	}
-
-	toolRefs := make([]ai.ToolRef, len(genkitTools))
-
-	for i, tool := range genkitTools {
-		toolRefs[i] = tool
-	}
-
-	for _, query := range queries {
-		conversationHistory = append(conversationHistory, ai.NewUserTextMessage(query))
-		response, err := genkit.Generate(ctx, g,
-			ai.WithMessages(conversationHistory...),
-			ai.WithTools(toolRefs...),
-			ai.WithReturnToolRequests(true),
-		)
-
-		if err != nil {
-			log.Fatalf("%v\n", err)
-		}
-		conversationHistory = append(conversationHistory, response.Message)
-
-		parts := []*ai.Part{}
-
-		for _, req := range response.ToolRequests() {
-			tool := genkit.LookupTool(g, req.Name)
-			if tool == nil {
-				log.Fatalf("tool %q not found", req.Name)
-			}
-
-			output, err := tool.RunRaw(ctx, req.Input)
-			if err != nil {
-				log.Fatalf("tool %q execution failed: %v", tool.Name(), err)
-			}
-
-			parts = append(parts,
-				ai.NewToolResponsePart(&ai.ToolResponse{
-					Name:   req.Name,
-					Ref:    req.Ref,
-					Output: output,
-				}))
-
-		}
-
-		if len(parts) > 0 {
-			resp, err := genkit.Generate(ctx, g,
-				ai.WithMessages(append(response.History(), ai.NewMessage(ai.RoleTool, nil, parts...))...),
-				ai.WithTools(toolRefs...),
-			)
-			if err != nil {
-				log.Fatal(err)
-			}
-			fmt.Println("\n", resp.Text())
-			conversationHistory = append(conversationHistory, resp.Message)
-		} else {
-			fmt.Println("\n", response.Text())
-		}
-
-	}
-
-}
 
 {{< /tab >}}
 
 {{< tab header="Go GenAI" lang="go" >}}
 
-package main
-
-import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log"
-	"os"
-
-	"github.com/googleapis/mcp-toolbox-sdk-go/core"
-	"google.golang.org/genai"
-)
-
-// ConvertToGenaiTool translates a ToolboxTool into the genai.FunctionDeclaration format.
-func ConvertToGenaiTool(toolboxTool *core.ToolboxTool) *genai.Tool {
-
-	inputschema, err := toolboxTool.InputSchema()
-	if err != nil {
-		return &genai.Tool{}
-	}
-
-	var paramsSchema *genai.Schema
-	_ = json.Unmarshal(inputschema, &paramsSchema)
-	// First, create the function declaration.
-	funcDeclaration := &genai.FunctionDeclaration{
-		Name:        toolboxTool.Name(),
-		Description: toolboxTool.Description(),
-		Parameters:  paramsSchema,
-	}
-
-	// Then, wrap the function declaration in a genai.Tool struct.
-	return &genai.Tool{
-		FunctionDeclarations: []*genai.FunctionDeclaration{funcDeclaration},
-	}
-}
-
-func printResponse(resp *genai.GenerateContentResponse) {
-	for _, cand := range resp.Candidates {
-		if cand.Content != nil {
-			for _, part := range cand.Content.Parts {
-				fmt.Println(part.Text)
-			}
-		}
-	}
-}
-
-const systemPrompt = `
-You're a helpful hotel assistant. You handle hotel searching, booking, and
-cancellations. When the user searches for a hotel, mention its name, id,
-location and price tier. Always mention hotel ids while performing any
-searches. This is very important for any operations. For any bookings or
-cancellations, please provide the appropriate confirmation. Be sure to
-update checkin or checkout dates if mentioned by the user.
-Don't ask for confirmations from the user.
-`
-
-var queries = []string{
-	"Find hotels in Basel with Basel in its name.",
-	"Can you book the hotel Hilton Basel for me?",
-	"Oh wait, this is too expensive. Please cancel it.",
-	"Please book the Hyatt Regency instead.",
-	"My check in dates would be from April 10, 2024 to April 19, 2024.",
-}
-
-func main() {
-	// Setup
-	ctx := context.Background()
-	apiKey := os.Getenv("GOOGLE_API_KEY")
-	toolboxURL := "http://localhost:5000"
-
-	// Initialize the Google GenAI client using the explicit ClientConfig.
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey: apiKey,
-	})
-	if err != nil {
-		log.Fatalf("Failed to create Google GenAI client: %v", err)
-	}
-
-	// Initialize the MCP Toolbox client.
-	toolboxClient, err := core.NewToolboxClient(toolboxURL)
-	if err != nil {
-		log.Fatalf("Failed to create Toolbox client: %v", err)
-	}
-
-	// Load the tool using the MCP Toolbox SDK.
-	tools, err := toolboxClient.LoadToolset("my-toolset", ctx)
-	if err != nil {
-		log.Fatalf("Failed to load tools: %v\nMake sure your Toolbox server is running and the tool is configured.", err)
-	}
-
-	genAITools := make([]*genai.Tool, len(tools))
-	toolsMap := make(map[string]*core.ToolboxTool, len(tools))
-
-	for i, tool := range tools {
-		genAITools[i] = ConvertToGenaiTool(tool)
-		toolsMap[tool.Name()] = tool
-	}
-
-	// Set up the generative model with the available tool.
-	modelName := "gemini-2.0-flash"
-
-	// Create the initial content prompt for the model.
-	messageHistory := []*genai.Content{
-		genai.NewContentFromText(systemPrompt, genai.RoleUser),
-	}
-	config := &genai.GenerateContentConfig{
-		Tools: genAITools,
-		ToolConfig: &genai.ToolConfig{
-			FunctionCallingConfig: &genai.FunctionCallingConfig{
-				Mode: genai.FunctionCallingConfigModeAny,
-			},
-		},
-	}
-
-	for _, query := range queries {
-
-		messageHistory = append(messageHistory, genai.NewContentFromText(query, genai.RoleUser))
-
-		genContentResp, err := client.Models.GenerateContent(ctx, modelName, messageHistory, config)
-		if err != nil {
-			log.Fatalf("LLM call failed for query '%s': %v", query, err)
-		}
-
-		if len(genContentResp.Candidates) > 0 && genContentResp.Candidates[0].Content != nil {
-			messageHistory = append(messageHistory, genContentResp.Candidates[0].Content)
-		}
-
-		functionCalls := genContentResp.FunctionCalls()
-
-		toolResponseParts := []*genai.Part{}
-
-		for _, fc := range functionCalls {
-
-			toolToInvoke, found := toolsMap[fc.Name]
-			if !found {
-				log.Fatalf("Tool '%s' not found in loaded tools map. Check toolset configuration.", fc.Name)
-			}
-
-			toolResult, invokeErr := toolToInvoke.Invoke(ctx, fc.Args)
-			if invokeErr != nil {
-				log.Fatalf("Failed to execute tool '%s': %v", fc.Name, invokeErr)
-			}
-
-			// Enhanced Tool Result Handling (retained to prevent nil issues)
-			toolResultString := ""
-			if toolResult != nil {
-				jsonBytes, marshalErr := json.Marshal(toolResult)
-				if marshalErr == nil {
-					toolResultString = string(jsonBytes)
-				} else {
-					toolResultString = fmt.Sprintf("%v", toolResult)
-				}
-			}
-
-			responseMap := map[string]any{"result": toolResultString}
-
-			toolResponseParts = append(toolResponseParts, genai.NewPartFromFunctionResponse(fc.Name, responseMap))
-		}
-		// Add all accumulated tool responses for this turn to the message history.
-		toolResponseContent := genai.NewContentFromParts(toolResponseParts, "function")
-		messageHistory = append(messageHistory, toolResponseContent)
-
-		finalResponse, err := client.Models.GenerateContent(ctx, modelName, messageHistory, &genai.GenerateContentConfig{})
-		if err != nil {
-			log.Fatalf("Error calling GenerateContent (with function result): %v", err)
-		}
-
-		printResponse(finalResponse)
-		// Add the final textual response from the LLM to the history
-		if len(finalResponse.Candidates) > 0 && finalResponse.Candidates[0].Content != nil {
-			messageHistory = append(messageHistory, finalResponse.Candidates[0].Content)
-		}
-	}
-}
+{{< include "quickstart/go/genAI/quickstart.go" >}}
 
 {{< /tab >}}
 
 {{< tab header="OpenAI Go" lang="go" >}}
 
-package main
+{{< include "quickstart/go/openAI/quickstart.go" >}}
 
-import (
-	"context"
-	"encoding/json"
-	"log"
-
-	"github.com/googleapis/mcp-toolbox-sdk-go/core"
-	openai "github.com/openai/openai-go"
-)
-
-// ConvertToOpenAITool converts a ToolboxTool into the go-openai library's Tool format.
-func ConvertToOpenAITool(toolboxTool *core.ToolboxTool) openai.ChatCompletionToolParam {
-	// Get the input schema
-	jsonSchemaBytes, err := toolboxTool.InputSchema()
-	if err != nil {
-		return openai.ChatCompletionToolParam{}
-	}
-
-	// Unmarshal the JSON bytes into FunctionParameters
-	var paramsSchema openai.FunctionParameters
-	if err := json.Unmarshal(jsonSchemaBytes, &paramsSchema); err != nil {
-		return openai.ChatCompletionToolParam{}
-	}
-
-	// Create and return the final tool parameter struct.
-	return openai.ChatCompletionToolParam{
-		Function: openai.FunctionDefinitionParam{
-			Name:        toolboxTool.Name(),
-			Description: openai.String(toolboxTool.Description()),
-			Parameters:  paramsSchema,
-		},
-	}
-}
-
-const systemPrompt = `
-You're a helpful hotel assistant. You handle hotel searching, booking, and
-cancellations. When the user searches for a hotel, mention its name, id,
-location and price tier. Always mention hotel ids while performing any
-searches. This is very important for any operations. For any bookings or
-cancellations, please provide the appropriate confirmation. Be sure to
-update checkin or checkout dates if mentioned by the user.
-Don't ask for confirmations from the user.
-`
-
-var queries = []string{
-	"Find hotels in Basel with Basel in its name.",
-	"Can you book the hotel Hilton Basel for me?",
-	"Oh wait, this is too expensive. Please cancel it and book the Hyatt Regency instead.",
-	"My check in dates would be from April 10, 2024 to April 19, 2024.",
-}
-
-func main() {
-	// Setup
-	ctx := context.Background()
-	toolboxURL := "http://localhost:5000"
-	openAIClient := openai.NewClient()
-
-	// Initialize the MCP Toolbox client.
-	toolboxClient, err := core.NewToolboxClient(toolboxURL)
-	if err != nil {
-		log.Fatalf("Failed to create Toolbox client: %v", err)
-	}
-
-	// Load the tools using the MCP Toolbox SDK.
-	tools, err := toolboxClient.LoadToolset("my-toolset", ctx)
-	if err != nil {
-		log.Fatalf("Failed to load tool : %v\nMake sure your Toolbox server is running and the tool is configured.", err)
-	}
-
-	openAITools := make([]openai.ChatCompletionToolParam, len(tools))
-	toolsMap := make(map[string]*core.ToolboxTool, len(tools))
-
-	for i, tool := range tools {
-		// Convert the Toolbox tool into the openAI FunctionDeclaration format.
-		openAITools[i] = ConvertToOpenAITool(tool)
-		// Add tool to a map for lookup later
-		toolsMap[tool.Name()] = tool
-
-	}
-
-	params := openai.ChatCompletionNewParams{
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.SystemMessage(systemPrompt),
-		},
-		Tools: openAITools,
-		Seed:  openai.Int(0),
-		Model: openai.ChatModelGPT4o,
-	}
-
-	for _, query := range queries {
-
-		params.Messages = append(params.Messages, openai.UserMessage(query))
-
-		// Make initial chat completion request
-		completion, err := openAIClient.Chat.Completions.New(ctx, params)
-		if err != nil {
-			panic(err)
-		}
-
-		toolCalls := completion.Choices[0].Message.ToolCalls
-
-		// Return early if there are no tool calls
-		if len(toolCalls) == 0 {
-			log.Println("No function call")
-		}
-
-		// If there was a function call, continue the conversation
-		params.Messages = append(params.Messages, completion.Choices[0].Message.ToParam())
-		for _, toolCall := range toolCalls {
-
-			toolName := toolCall.Function.Name
-			toolToInvoke := toolsMap[toolName]
-
-			var args map[string]any
-			err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
-			if err != nil {
-				panic(err)
-			}
-
-			result, err := toolToInvoke.Invoke(ctx, args)
-			if err != nil {
-				log.Fatal("Could not invoke tool", err)
-			}
-
-			params.Messages = append(params.Messages, openai.ToolMessage(result.(string), toolCall.ID))
-		}
-
-		completion, err = openAIClient.Chat.Completions.New(ctx, params)
-		if err != nil {
-			panic(err)
-		}
-
-		params.Messages = append(params.Messages, openai.AssistantMessage(query))
-
-		println("\n", completion.Choices[0].Message.Content)
-
-	}
-
-}
 
 {{< /tab >}}
 {{< /tabpane >}}
@@ -2882,7 +1035,7 @@ In this section, we will download Toolbox, configure our tools in a
     <!-- {x-release-please-start-version} -->
     ```bash
     export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
-    curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/$OS/toolbox
+    curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/$OS/toolbox
     ```
     <!-- {x-release-please-end} -->
 
@@ -3047,6 +1200,11 @@ etc., you could use environment variables instead with the format `${ENV_NAME}`.
 ```yaml
   user: ${USER_NAME}
   password: ${PASSWORD}
+```
+A default value can be specified like `${ENV_NAME:default}`.
+
+```yaml
+  port: ${DB_PORT:3306}
 ```
 
 ### Sources
@@ -3410,331 +1568,12 @@ Connect your IDE to Cloud SQL for SQL Server using Toolbox.
 Connect your IDE to Firestore using Toolbox.
 
 
-[Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) is
-an open protocol for connecting Large Language Models (LLMs) to data sources
-like Firestore. This guide covers how to use [MCP Toolbox for Databases][toolbox]
-to expose your developer assistant tools to a Firestore instance:
-
-* [Cursor][cursor]
-* [Windsurf][windsurf] (Codium)
-* [Visual Studio Code][vscode] (Copilot)
-* [Cline][cline]  (VS Code extension)
-* [Claude desktop][claudedesktop]
-* [Claude code][claudecode]
-* [Gemini CLI][geminicli]
-* [Gemini Code Assist][geminicodeassist]
-
-[toolbox]: https://github.com/googleapis/genai-toolbox
-[cursor]: #configure-your-mcp-client
-[windsurf]: #configure-your-mcp-client
-[vscode]: #configure-your-mcp-client
-[cline]: #configure-your-mcp-client
-[claudedesktop]: #configure-your-mcp-client
-[claudecode]: #configure-your-mcp-client
-[geminicli]: #configure-your-mcp-client
-[geminicodeassist]: #configure-your-mcp-client
-
-## Set up Firestore
-
-1. Create or select a Google Cloud project.
-
-    * [Create a new
-      project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
-    * [Select an existing
-      project](https://cloud.google.com/resource-manager/docs/creating-managing-projects#identifying_projects)
-
-1. [Enable the Firestore
-   API](https://console.cloud.google.com/apis/library/firestore.googleapis.com)
-   for your project.
-
-1. [Create a Firestore
-   database](https://cloud.google.com/firestore/docs/create-database-web-mobile-client-library)
-   if you haven't already.
-
-1. Set up authentication for your local environment.
-
-    * [Install gcloud CLI](https://cloud.google.com/sdk/docs/install)
-    * Run `gcloud auth application-default login` to authenticate
-
-## Install MCP Toolbox
-
-1. Download the latest version of Toolbox as a binary. Select the [correct
-   binary](https://github.com/googleapis/genai-toolbox/releases) corresponding
-   to your OS and CPU architecture. You are required to use Toolbox version
-   V0.10.0+:
-
-   <!-- {x-release-please-start-version} -->
-   {{< tabpane persist=header >}}
-{{< tab header="linux/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/linux/amd64/toolbox
-{{< /tab >}}
-
-{{< tab header="darwin/arm64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/arm64/toolbox
-{{< /tab >}}
-
-{{< tab header="darwin/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/amd64/toolbox
-{{< /tab >}}
-
-{{< tab header="windows/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolbox
-{{< /tab >}}
-{{< /tabpane >}}
-    <!-- {x-release-please-end} -->
-
-1. Make the binary executable:
-
-    ```bash
-    chmod +x toolbox
-    ```
-
-1. Verify the installation:
-
-    ```bash
-    ./toolbox --version
-    ```
-
-## Configure your MCP Client
-
-{{< tabpane text=true >}}
-{{% tab header="Claude code" lang="en" %}}
-
-1. Install [Claude
-   Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview).
-1. Create a `.mcp.json` file in your project root if it doesn't exist.
-1. Add the following configuration, replace the environment variables with your
-   values, and save:
-
-    ```json
-    {
-      "mcpServers": {
-        "firestore": {
-          "command": "./PATH/TO/toolbox",
-          "args": ["--prebuilt","firestore","--stdio"],
-          "env": {
-            "FIRESTORE_PROJECT": "your-project-id",
-            "FIRESTORE_DATABASE": "(default)"
-          }
-        }
-      }
-    }
-    ```
-
-1. Restart Claude code to apply the new configuration.
-{{% /tab %}}
-
-{{% tab header="Claude desktop" lang="en" %}}
-
-1. Open [Claude desktop](https://claude.ai/download) and navigate to Settings.
-1. Under the Developer tab, tap Edit Config to open the configuration file.
-1. Add the following configuration, replace the environment variables with your
-   values, and save:
-
-    ```json
-    {
-      "mcpServers": {
-        "firestore": {
-          "command": "./PATH/TO/toolbox",
-          "args": ["--prebuilt","firestore","--stdio"],
-          "env": {
-            "FIRESTORE_PROJECT": "your-project-id",
-            "FIRESTORE_DATABASE": "(default)"
-          }
-        }
-      }
-    }
-    ```
-
-1. Restart Claude desktop.
-1. From the new chat screen, you should see a hammer (MCP) icon appear with the
-   new MCP server available.
-{{% /tab %}}
-
-{{% tab header="Cline" lang="en" %}}
-
-1. Open the [Cline](https://github.com/cline/cline) extension in VS Code and tap
-   the **MCP Servers** icon.
-1. Tap Configure MCP Servers to open the configuration file.
-1. Add the following configuration, replace the environment variables with your
-   values, and save:
-
-    ```json
-    {
-      "mcpServers": {
-        "firestore": {
-          "command": "./PATH/TO/toolbox",
-          "args": ["--prebuilt","firestore","--stdio"],
-          "env": {
-            "FIRESTORE_PROJECT": "your-project-id",
-            "FIRESTORE_DATABASE": "(default)"
-          }
-        }
-      }
-    }
-    ```
-
-1. You should see a green active status after the server is successfully
-   connected.
-{{% /tab %}}
-
-{{% tab header="Cursor" lang="en" %}}
-
-1. Create a `.cursor` directory in your project root if it doesn't exist.
-1. Create a `.cursor/mcp.json` file if it doesn't exist and open it.
-1. Add the following configuration, replace the environment variables with your
-   values, and save:
-
-    ```json
-    {
-      "mcpServers": {
-        "firestore": {
-          "command": "./PATH/TO/toolbox",
-          "args": ["--prebuilt","firestore","--stdio"],
-          "env": {
-            "FIRESTORE_PROJECT": "your-project-id",
-            "FIRESTORE_DATABASE": "(default)"
-          }
-        }
-      }
-    }
-    ```
-
-1. [Cursor](https://www.cursor.com/) and navigate to **Settings > Cursor
-   Settings > MCP**. You should see a green active status after the server is
-   successfully connected.
-{{% /tab %}}
-
-{{% tab header="Visual Studio Code (Copilot)" lang="en" %}}
-
-1. Open [VS Code](https://code.visualstudio.com/docs/copilot/overview) and
-   create a `.vscode` directory in your project root if it doesn't exist.
-1. Create a `.vscode/mcp.json` file if it doesn't exist and open it.
-1. Add the following configuration, replace the environment variables with your
-   values, and save:
-
-    ```json
-    {
-      "mcpServers": {
-        "firestore": {
-          "command": "./PATH/TO/toolbox",
-          "args": ["--prebuilt","firestore","--stdio"],
-          "env": {
-            "FIRESTORE_PROJECT": "your-project-id",
-            "FIRESTORE_DATABASE": "(default)"
-          }
-        }
-      }
-    }
-    ```
-
-{{% /tab %}}
-
-{{% tab header="Windsurf" lang="en" %}}
-
-1. Open [Windsurf](https://docs.codeium.com/windsurf) and navigate to the
-   Cascade assistant.
-1. Tap on the hammer (MCP) icon, then Configure to open the configuration file.
-1. Add the following configuration, replace the environment variables with your
-   values, and save:
-
-    ```json
-    {
-      "mcpServers": {
-        "firestore": {
-          "command": "./PATH/TO/toolbox",
-          "args": ["--prebuilt","firestore","--stdio"],
-          "env": {
-            "FIRESTORE_PROJECT": "your-project-id",
-            "FIRESTORE_DATABASE": "(default)"
-          }
-        }
-      }
-    }
-
-    ```
-
-{{% /tab %}}
-{{% tab header="Gemini CLI" lang="en" %}}
-
-1. Install the [Gemini
-   CLI](https://github.com/google-gemini/gemini-cli?tab=readme-ov-file#quickstart).
-1. In your working directory, create a folder named `.gemini`. Within it, create
-   a `settings.json` file.
-1. Add the following configuration, replace the environment variables with your
-   values, and then save:
-
-    ```json
-    {
-      "mcpServers": {
-        "firestore": {
-          "command": "./PATH/TO/toolbox",
-          "args": ["--prebuilt","firestore","--stdio"],
-          "env": {
-            "FIRESTORE_PROJECT": "your-project-id",
-            "FIRESTORE_DATABASE": "(default)"
-          }
-        }
-      }
-    }
-
-    ```
-
-{{% /tab %}}
-{{% tab header="Gemini Code Assist" lang="en" %}}
-
-1. Install the [Gemini Code
-   Assist](https://marketplace.visualstudio.com/items?itemName=Google.geminicodeassist)
-   extension in Visual Studio Code.
-1. Enable Agent Mode in Gemini Code Assist chat.
-1. In your working directory, create a folder named `.gemini`. Within it, create
-   a `settings.json` file.
-1. Add the following configuration, replace the environment variables with your
-   values, and then save:
-
-    ```json
-    {
-      "mcpServers": {
-        "firestore": {
-          "command": "./PATH/TO/toolbox",
-          "args": ["--prebuilt","firestore","--stdio"],
-          "env": {
-            "FIRESTORE_PROJECT": "your-project-id",
-            "FIRESTORE_DATABASE": "(default)"
-          }
-        }
-      }
-    }
-
-    ```
-
-{{% /tab %}}
-{{< /tabpane >}}
-
-## Use Tools
-
-Your AI tool is now connected to Firestore using MCP. Try asking your AI
-assistant to list collections, get documents, query collections, or manage
-security rules.
-
-The following tools are available to the LLM:
-
-1. **firestore-get-documents**: Gets multiple documents from Firestore by their
-   paths
-1. **firestore-list-collections**: List Firestore collections for a given parent
-   path
-1. **firestore-delete-documents**: Delete multiple documents from Firestore
-1. **firestore-query-collection**: Query documents from a collection with
-   filtering, ordering, and limit options
-1. **firestore-get-rules**: Retrieves the active Firestore security rules for
-   the current project
-1. **firestore-validate-rules**: Validates Firestore security rules syntax and
-   errors
-
-{{< notice note >}}
-Prebuilt tools are pre-1.0, so expect some tool changes between versions. LLMs
-will adapt to the tools available, so this shouldn't affect most users.
-{{< /notice >}}
+<html>
+  <head>
+    <link rel="canonical" href="https://cloud.google.com/firestore/native/docs/connect-ide-using-mcp-toolbox"/>
+    <meta http-equiv="refresh" content="0;url=https://cloud.google.com/firestore/native/docs/connect-ide-using-mcp-toolbox"/>
+  </head>
+</html>
 
 
 # Looker using MCP
@@ -3746,6 +1585,7 @@ an open protocol for connecting Large Language Models (LLMs) to data sources
 like Postgres. This guide covers how to use [MCP Toolbox for Databases][toolbox]
 to expose your developer assistant tools to a Looker instance:
 
+* [Gemini-CLI][gemini-cli]
 * [Cursor][cursor]
 * [Windsurf][windsurf] (Codium)
 * [Visual Studio Code][vscode] (Copilot)
@@ -3754,6 +1594,7 @@ to expose your developer assistant tools to a Looker instance:
 * [Claude code][claudecode]
 
 [toolbox]: https://github.com/googleapis/genai-toolbox
+[gemini-cli]: #configure-your-mcp-client
 [cursor]: #configure-your-mcp-client
 [windsurf]: #configure-your-mcp-client
 [vscode]: #configure-your-mcp-client
@@ -3781,19 +1622,19 @@ to expose your developer assistant tools to a Looker instance:
    <!-- {x-release-please-start-version} -->
 {{< tabpane persist=header >}}
 {{< tab header="linux/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/linux/amd64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/linux/amd64/toolbox
 {{< /tab >}}
 
 {{< tab header="darwin/arm64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/arm64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/darwin/arm64/toolbox
 {{< /tab >}}
 
 {{< tab header="darwin/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/amd64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/darwin/amd64/toolbox
 {{< /tab >}}
 
 {{< tab header="windows/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolbox.exe
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/windows/amd64/toolbox.exe
 {{< /tab >}}
 {{< /tabpane >}}
     <!-- {x-release-please-end} -->
@@ -3813,6 +1654,36 @@ curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolb
 ## Configure your MCP Client
 
 {{< tabpane text=true >}}
+{{% tab header="Gemini-CLI" lang="en" %}}
+
+1. Install [Gemini-CLI](https://github.com/google-gemini/gemini-cli#install-globally-with-npm).
+1. Create a directory `.gemini` in your home directory if it doesn't exist.
+1. Create the file `.gemini/settings.json` if it doesn't exist.
+1. Add the following configuration, or add the mcpServers stanza if you already
+   have a `settings.json` with content. Replace the path to the toolbox
+   executable and the environment variables with your values, and save:
+
+    ```json
+    {
+      "mcpServers": {
+        "looker-toolbox": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--stdio", "--prebuilt", "looker"],
+          "env": {
+            "LOOKER_BASE_URL": "https://looker.example.com",
+            "LOOKER_CLIENT_ID": "",
+            "LOOKER_CLIENT_SECRET": "",
+            "LOOKER_VERIFY_SSL": "true"
+          }
+        }
+      }
+    }
+    ```
+
+1. Start Gemini-CLI with the `gemini` command and use the command `/mcp` to see
+   the configured MCP tools.
+{{% /tab %}}
+
 {{% tab header="Claude code" lang="en" %}}
 
 1. Install [Claude
@@ -3938,7 +1809,7 @@ curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolb
 
     ```json
     {
-      "mcpServers": {
+      "servers": {
         "looker-toolbox": {
           "command": "./PATH/TO/toolbox",
           "args": ["--stdio", "--prebuilt", "looker"],
@@ -4004,6 +1875,9 @@ The following tools are available to the LLM:
 1. **get_looks**: Return the saved Looks that match a title or description
 1. **run_look**: Run a saved Look and return the data
 1. **make_look**: Create a saved Look in Looker and return the URL
+1. **get_dashboards**: Return the saved dashboards that match a title or description
+1. **make_dashboard**: Create a saved dashboard in Looker and return the URL
+1. **add_dashboard_element**: Add a tile to a dashboard
 
 {{< notice note >}}
 Prebuilt tools are pre-1.0, so expect some tool changes between versions. LLMs
@@ -4046,19 +1920,19 @@ Connect your IDE to MySQL using Toolbox.
    <!-- {x-release-please-start-version} -->
    {{< tabpane persist=header >}}
 {{< tab header="linux/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/linux/amd64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/linux/amd64/toolbox
 {{< /tab >}}
 
 {{< tab header="darwin/arm64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/arm64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/darwin/arm64/toolbox
 {{< /tab >}}
 
 {{< tab header="darwin/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/amd64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/darwin/amd64/toolbox
 {{< /tab >}}
 
 {{< tab header="windows/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolbox.exe
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/windows/amd64/toolbox.exe
 {{< /tab >}}
 {{< /tabpane >}}
     <!-- {x-release-please-end} -->
@@ -4191,7 +2065,7 @@ curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolb
 
     ```json
     {
-      "mcpServers": {
+      "servers": {
         "mysql": {
           "command": "./PATH/TO/toolbox",
           "args": ["--prebuilt","mysql","--stdio"],
@@ -4296,6 +2170,285 @@ Prebuilt tools are pre-1.0, so expect some tool changes between versions. LLMs w
 {{< /notice >}}
 
 
+# Neo4j using MCP
+Connect your IDE to Neo4j using Toolbox.
+
+[Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) is an open protocol for connecting Large Language Models (LLMs) to data sources like Neo4j. This guide covers how to use [MCP Toolbox for Databases][toolbox] to expose your developer assistant tools to a Neo4j instance:
+
+* [Cursor][cursor]
+* [Windsurf][windsurf] (Codium)
+* [Visual Studio Code][vscode] (Copilot)
+* [Cline][cline] (VS Code extension)
+* [Claude desktop][claudedesktop]
+* [Claude code][claudecode]
+* [Gemini CLI][geminicli]
+* [Gemini Code Assist][geminicodeassist]
+
+[toolbox]: https://github.com/googleapis/genai-toolbox
+[cursor]: #configure-your-mcp-client
+[windsurf]: #configure-your-mcp-client
+[vscode]: #configure-your-mcp-client
+[cline]: #configure-your-mcp-client
+[claudedesktop]: #configure-your-mcp-client
+[claudecode]: #configure-your-mcp-client
+[geminicli]: #configure-your-mcp-client
+[geminicodeassist]: #configure-your-mcp-client
+
+## Set up the database
+
+1.  [Create or select a Neo4j instance.](https://neo4j.com/cloud/platform/aura-graph-database/)
+
+## Install MCP Toolbox
+
+1. Download the latest version of Toolbox as a binary. Select the [correct binary](https://github.com/googleapis/genai-toolbox/releases) corresponding to your OS and CPU architecture. You are required to use Toolbox version v0.15.0+:
+
+   <!-- {x-release-please-start-version} -->
+   {{< tabpane persist=header >}}
+{{< tab header="linux/amd64" lang="bash" >}}
+curl -O https://storage.googleapis.com/genai-toolbox/v0.15.0/linux/amd64/toolbox
+{{< /tab >}}
+
+{{< tab header="darwin/arm64" lang="bash" >}}
+curl -O https://storage.googleapis.com/genai-toolbox/v0.15.0/darwin/arm64/toolbox
+{{< /tab >}}
+
+{{< tab header="darwin/amd64" lang="bash" >}}
+curl -O https://storage.googleapis.com/genai-toolbox/v0.15.0/darwin/amd64/toolbox
+{{< /tab >}}
+
+{{< tab header="windows/amd64" lang="bash" >}}
+curl -O https://storage.googleapis.com/genai-toolbox/v0.15.0/windows/amd64/toolbox.exe
+{{< /tab >}}
+{{< /tabpane >}}
+    <!-- {x-release-please-end} -->
+
+1. Make the binary executable:
+
+    ```bash
+    chmod +x toolbox
+    ```
+
+1. Verify the installation:
+
+    ```bash
+    ./toolbox --version
+    ```
+
+## Configure your MCP Client
+
+{{< tabpane text=true >}}
+{{% tab header="Claude code" lang="en" %}}
+
+1.  Install [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview).
+1.  Create a `.mcp.json` file in your project root if it doesn't exist.
+1.  Add the following configuration, replace the environment variables with your values, and save:
+
+    ```json
+    {
+      "mcpServers": {
+        "neo4j": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","neo4j","--stdio"],
+          "env": {
+            "NEO4J_URI": "",
+            "NEO4J_DATABASE": "",
+            "NEO4J_USERNAME": "",
+            "NEO4J_PASSWORD": ""
+          }
+        }
+      }
+    }
+    ```
+
+1.  Restart Claude code to apply the new configuration.
+{{% /tab %}}
+{{% tab header="Claude desktop" lang="en" %}}
+
+1.  Open [Claude desktop](https://claude.ai/download) and navigate to Settings.
+1.  Under the Developer tab, tap Edit Config to open the configuration file.
+1.  Add the following configuration, replace the environment variables with your values, and save:
+
+    ```json
+    {
+      "mcpServers": {
+        "neo4j": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","neo4j","--stdio"],
+          "env": {
+            "NEO4J_URI": "",
+            "NEO4J_DATABASE": "",
+            "NEO4J_USERNAME": "",
+            "NEO4J_PASSWORD": ""
+          }
+        }
+      }
+    }
+    ```
+
+1.  Restart Claude desktop.
+1.  From the new chat screen, you should see a hammer (MCP) icon appear with the new MCP server available.
+{{% /tab %}}
+{{% tab header="Cline" lang="en" %}}
+
+1.  Open the [Cline](https://github.com/cline/cline) extension in VS Code and tap the **MCP Servers** icon.
+1.  Tap Configure MCP Servers to open the configuration file.
+1.  Add the following configuration, replace the environment variables with your values, and save:
+
+    ```json
+    {
+      "mcpServers": {
+        "neo4j": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","neo4j","--stdio"],
+          "env": {
+            "NEO4J_URI": "",
+            "NEO4J_DATABASE": "",
+            "NEO4J_USERNAME": "",
+            "NEO4J_PASSWORD": ""
+          }
+        }
+      }
+    }
+    ```
+
+1.  You should see a green active status after the server is successfully connected.
+{{% /tab %}}
+{{% tab header="Cursor" lang="en" %}}
+
+1.  Create a `.cursor` directory in your project root if it doesn't exist.
+1.  Create a `.cursor/mcp.json` file if it doesn't exist and open it.
+1.  Add the following configuration, replace the environment variables with your values, and save:
+
+    ```json
+    {
+      "mcpServers": {
+        "neo4j": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","neo4j","--stdio"],
+          "env": {
+            "NEO4J_URI": "",
+            "NEO4J_DATABASE": "",
+            "NEO4J_USERNAME": "",
+            "NEO4J_PASSWORD": ""
+          }
+        }
+      }
+    }
+    ```
+
+1.  Open [Cursor](https://www.cursor.com/) and navigate to **Settings > Cursor Settings > MCP**. You should see a green active status after the server is successfully connected.
+{{% /tab %}}
+{{% tab header="Visual Studio Code (Copilot)" lang="en" %}}
+
+1.  Open [VS Code](https://code.visualstudio.com/docs/copilot/overview) and create a `.vscode` directory in your project root if it doesn't exist.
+1.  Create a `.vscode/mcp.json` file if it doesn't exist and open it.
+1.  Add the following configuration, replace the environment variables with your values, and save:
+
+    ```json
+    {
+    "mcp" : {
+        "servers": {
+        "neo4j": {
+            "command": "./PATH/TO/toolbox",
+            "args": ["--prebuilt","neo4j","--stdio"],
+            "env": {
+              "NEO4J_URI": "",
+              "NEO4J_DATABASE": "",
+              "NEO4J_USERNAME": "",
+              "NEO4J_PASSWORD": ""
+            }
+         }
+        }
+      }
+    }
+    ```
+{{% /tab %}}
+{{% tab header="Windsurf" lang="en" %}}
+
+1.  Open [Windsurf](https://docs.codeium.com/windsurf) and navigate to the Cascade assistant.
+1.  Tap on the hammer (MCP) icon, then Configure to open the configuration file.
+1.  Add the following configuration, replace the environment variables with your values, and save:
+
+    ```json
+    {
+      "mcpServers": {
+        "neo4j": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","neo4j","--stdio"],
+          "env": {
+            "NEO4J_URI": "",
+            "NEO4J_DATABASE": "",
+            "NEO4J_USERNAME": "",
+            "NEO4J_PASSWORD": ""
+          }
+        }
+      }
+    }
+    ```
+{{% /tab %}}
+{{% tab header="Gemini CLI" lang="en" %}}
+
+1.  Install the [Gemini CLI](https://github.com/google-gemini/gemini-cli?tab=readme-ov-file#quickstart).
+1.  In your working directory, create a folder named `.gemini`. Within it, create a `settings.json` file.
+1.  Add the following configuration, replace the environment variables with your values, and then save:
+
+    ```json
+    {
+      "mcpServers": {
+        "neo4j": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","neo4j","--stdio"],
+          "env": {
+            "NEO4J_URI": "",
+            "NEO4J_DATABASE": "",
+            "NEO4J_USERNAME": "",
+            "NEO4J_PASSWORD": ""
+          }
+        }
+      }
+    }
+    ```
+{{% /tab %}}
+{{% tab header="Gemini Code Assist" lang="en" %}}
+
+1.  Install the [Gemini Code Assist](https://marketplace.visualstudio.com/items?itemName=Google.geminicodeassist) extension in Visual Studio Code.
+1.  Enable Agent Mode in Gemini Code Assist chat.
+1.  In your working directory, create a folder named `.gemini`. Within it, create a `settings.json` file.
+1.  Add the following configuration, replace the environment variables with your values, and then save:
+
+    ```json
+    {
+      "mcpServers": {
+        "neo4j": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","neo4j","--stdio"],
+          "env": {
+            "NEO4J_URI": "",
+            "NEO4J_DATABASE": "",
+            "NEO4J_USERNAME": "",
+            "NEO4J_PASSWORD": ""
+          }
+        }
+      }
+    }
+    ```
+{{% /tab %}}
+{{< /tabpane >}}
+
+## Use Tools
+
+Your AI tool is now connected to Neo4j using MCP. Try asking your AI assistant to get the graph schema or execute Cypher statements.
+
+The following tools are available to the LLM:
+
+1.  **get_schema**: extracts the complete database schema, including details about node labels, relationships, properties, constraints, and indexes.
+1.  **execute_cypher**: executes any arbitrary Cypher statement.
+
+{{< notice note >}}
+Prebuilt tools are pre-1.0, so expect some tool changes between versions. LLMs will adapt to the tools available, so this shouldn't affect most users.
+{{< /notice >}}
+
+
 # PostgreSQL using MCP
 Connect your IDE to PostgreSQL using Toolbox.
 
@@ -4311,6 +2464,8 @@ to expose your developer assistant tools to a Postgres instance:
 * [Cline][cline]  (VS Code extension)
 * [Claude desktop][claudedesktop]
 * [Claude code][claudecode]
+* [Gemini CLI][geminicli]
+* [Gemini Code Assist][geminicodeassist]
 
 [toolbox]: https://github.com/googleapis/genai-toolbox
 [cursor]: #configure-your-mcp-client
@@ -4319,6 +2474,8 @@ to expose your developer assistant tools to a Postgres instance:
 [cline]: #configure-your-mcp-client
 [claudedesktop]: #configure-your-mcp-client
 [claudecode]: #configure-your-mcp-client
+[geminicli]: #configure-your-mcp-client
+[geminicodeassist]: #configure-your-mcp-client
 
 {{< notice tip >}}
 This guide can be used with [AlloyDB
@@ -4346,19 +2503,19 @@ Omni](https://cloud.google.com/alloydb/omni/current/docs/overview).
    <!-- {x-release-please-start-version} -->
    {{< tabpane persist=header >}}
 {{< tab header="linux/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/linux/amd64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/linux/amd64/toolbox
 {{< /tab >}}
 
 {{< tab header="darwin/arm64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/arm64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/darwin/arm64/toolbox
 {{< /tab >}}
 
 {{< tab header="darwin/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/amd64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/darwin/amd64/toolbox
 {{< /tab >}}
 
 {{< tab header="windows/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolbox.exe
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/windows/amd64/toolbox.exe
 {{< /tab >}}
 {{< /tabpane >}}
     <!-- {x-release-please-end} -->
@@ -4507,7 +2664,7 @@ curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolb
 
     ```json
     {
-      "mcpServers": {
+      "servers": {
         "postgres": {
           "command": "./PATH/TO/toolbox",
           "args": ["--prebuilt","postgres","--stdio"],
@@ -4552,6 +2709,57 @@ curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolb
 
     ```
 
+{{% /tab %}}
+
+{{% tab header="Gemini CLI" lang="en" %}}
+
+1.  Install the [Gemini CLI](https://github.com/google-gemini/gemini-cli?tab=readme-ov-file#quickstart).
+1.  In your working directory, create a folder named `.gemini`. Within it, create a `settings.json` file.
+1.  Add the following configuration, replace the environment variables with your values, and then save:
+
+    ```json
+    {
+      "mcpServers": {
+        "postgres": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","postgres","--stdio"],
+          "env": {
+            "POSTGRES_HOST": "",
+            "POSTGRES_PORT": "",
+            "POSTGRES_DATABASE": "",
+            "POSTGRES_USER": "",
+            "POSTGRES_PASSWORD": ""
+          }
+        }
+      }
+    }
+    ```
+{{% /tab %}}
+
+{{% tab header="Gemini Code Assist" lang="en" %}}
+
+1.  Install the [Gemini Code Assist](https://marketplace.visualstudio.com/items?itemName=Google.geminicodeassist) extension in Visual Studio Code.
+1.  Enable Agent Mode in Gemini Code Assist chat.
+1.  In your working directory, create a folder named `.gemini`. Within it, create a `settings.json` file.
+1.  Add the following configuration, replace the environment variables with your values, and then save:
+
+    ```json
+    {
+      "mcpServers": {
+        "postgres": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","postgres","--stdio"],
+          "env": {
+            "POSTGRES_HOST": "",
+            "POSTGRES_PORT": "",
+            "POSTGRES_DATABASE": "",
+            "POSTGRES_USER": "",
+            "POSTGRES_PASSWORD": ""
+          }
+        }
+      }
+    }
+    ```
 {{% /tab %}}
 {{< /tabpane >}}
 
@@ -4618,19 +2826,19 @@ Connect your IDE to SQL Server using Toolbox.
    <!-- {x-release-please-start-version} -->
    {{< tabpane persist=header >}}
 {{< tab header="linux/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/linux/amd64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/linux/amd64/toolbox
 {{< /tab >}}
 
 {{< tab header="darwin/arm64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/arm64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/darwin/arm64/toolbox
 {{< /tab >}}
 
 {{< tab header="darwin/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/darwin/amd64/toolbox
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/darwin/amd64/toolbox
 {{< /tab >}}
 
 {{< tab header="windows/amd64" lang="bash" >}}
-curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolbox.exe
+curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/windows/amd64/toolbox.exe
 {{< /tab >}}
 {{< /tabpane >}}
     <!-- {x-release-please-end} -->
@@ -4763,19 +2971,17 @@ curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/windows/amd64/toolb
 
     ```json
     {
-    "mcp" : {
-        "servers": {
-        "cloud-sql-sqlserver": {
-            "command": "./PATH/TO/toolbox",
-            "args": ["--prebuilt","cloud-sql-mssql","--stdio"],
-            "env": {
-              "MSSQL_HOST": "",
-              "MSSQL_PORT": "",
-              "MSSQL_DATABASE": "",
-              "MSSQL_USER": "",
-              "MSSQL_PASSWORD": ""
-            }
-         }
+      "servers": {
+        "mssql": {
+          "command": "./PATH/TO/toolbox",
+          "args": ["--prebuilt","mssql","--stdio"],
+          "env": {
+            "MSSQL_HOST": "",
+            "MSSQL_PORT": "",
+            "MSSQL_DATABASE": "",
+            "MSSQL_USER": "",
+            "MSSQL_PASSWORD": ""
+          }
         }
       }
     }
@@ -4868,6 +3074,7 @@ The following tools are available to the LLM:
 {{< notice note >}}
 Prebuilt tools are pre-1.0, so expect some tool changes between versions. LLMs will adapt to the tools available, so this shouldn't affect most users.
 {{< /notice >}}
+
 
 # Connect via MCP Client
 How to connect to Toolbox from a MCP Client.
@@ -5253,6 +3460,14 @@ section.
     ```bash
     export IMAGE=us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest
     ```
+{{< notice note >}}  
+**The `$PORT` Environment Variable**  
+Google Cloud Run dictates the port your application must listen on by setting the
+`$PORT` environment variable inside your container. This value defaults to
+**8080**. Your application's `--port` argument **must** be set to listen on this
+port. If there is a mismatch, the container will fail to start and the
+deployment will time out.  
+{{< /notice >}}
 
 1. Deploy Toolbox to Cloud Run using the following command:
 
@@ -5347,6 +3562,25 @@ func main() {
 
 
 Now, you can use this client to connect to the deployed Cloud Run instance!
+
+## Troubleshooting
+
+{{< notice note >}}  
+For any deployment or runtime error, the best first step is to check the logs for your service in the Google Cloud Console's Cloud Run section. They often contain the specific error message needed to diagnose the problem.  
+{{< /notice >}}
+
+* **Deployment Fails with "Container failed to start":** This is almost always
+    caused by a port mismatch. Ensure your container's `--port` argument is set to
+    `8080` to match the `$PORT` environment variable provided by Cloud Run.
+
+* **Client Receives Permission Denied Error (401 or 403):** If your client application (e.g., your local SDK) gets a `401 Unauthorized` or `403 Forbidden` error when trying to call your Cloud Run service, it means the client is not properly authenticated as an invoker.
+    * Ensure the user or service account calling the service has the **Cloud Run Invoker** (`roles/run.invoker`) IAM role.
+    * If running locally, make sure your Application Default Credentials are set up correctly by running `gcloud auth application-default login`.
+
+* **Service Fails to Access Secrets (in logs):** If your application starts but the logs show errors like "permission denied" when trying to access Secret Manager, it means the Toolbox service account is missing permissions.
+    * Ensure the `toolbox-identity` service account has the **Secret Manager Secret Accessor** (`roles/secretmanager.secretAccessor`) IAM role.
+
+
 
 
 # Deploy to Kubernetes
@@ -6397,11 +4631,14 @@ avoiding full table scans or complex filters.
 
 ## Available Tools
 
-- [`bigquery-sql`](../tools/bigquery/bigquery-sql.md)  
-  Run SQL queries directly against BigQuery datasets.
+- [`bigquery-conversational-analytics`](../tools/bigquery/bigquery-conversational-analytics.md)
+  Allows conversational interaction with a BigQuery source.
 
 - [`bigquery-execute-sql`](../tools/bigquery/bigquery-execute-sql.md)  
   Execute structured queries using parameters.
+
+- [`bigquery-forecast`](../tools/bigquery/bigquery-forecast.md)
+  Forecasts time series data in BigQuery.
 
 - [`bigquery-get-dataset-info`](../tools/bigquery/bigquery-get-dataset-info.md)  
   Retrieve metadata for a specific dataset.
@@ -6415,6 +4652,9 @@ avoiding full table scans or complex filters.
 - [`bigquery-list-table-ids`](../tools/bigquery/bigquery-list-table-ids.md)  
   List tables in a given dataset.
 
+- [`bigquery-sql`](../tools/bigquery/bigquery-sql.md)  
+  Run SQL queries directly against BigQuery datasets.
+
 ### Pre-built Configurations
 
 - [BigQuery using MCP](https://googleapis.github.io/genai-toolbox/how-to/connect-ide/bigquery_mcp/)  
@@ -6426,37 +4666,67 @@ Connect your IDE to BigQuery using Toolbox.
 
 BigQuery uses [Identity and Access Management (IAM)][iam-overview] to control
 user and group access to BigQuery resources like projects, datasets, and tables.
-Toolbox will use your [Application Default Credentials (ADC)][adc] to authorize
-and authenticate when interacting with [BigQuery][bigquery-docs].
 
-In addition to [setting the ADC for your server][set-adc], you need to ensure
-the IAM identity has been given the correct IAM permissions for the queries
-you intend to run. Common roles include `roles/bigquery.user` (which includes
-permissions to run jobs and read data) or `roles/bigquery.dataViewer`. See
-[Introduction to BigQuery IAM][grant-permissions] for more information on
-applying IAM permissions and roles to an identity.
+### Authentication via Application Default Credentials (ADC)
+
+By **default**, Toolbox will use your [Application Default Credentials (ADC)][adc] to authorize and authenticate when interacting with [BigQuery][bigquery-docs].
+
+When using this method, you need to ensure the IAM identity associated with your
+ADC (such as a service account) has the correct permissions for the queries you
+intend to run. Common roles include `roles/bigquery.user` (which includes
+permissions to run jobs and read data) or `roles/bigbigquery.dataViewer`.
+Follow this [guide][set-adc] to set up your ADC.
+
+### Authentication via User's OAuth Access Token
+
+If the `useClientOAuth` parameter is set to `true`, Toolbox will instead use the
+OAuth access token for authentication. This token is parsed from the
+`Authorization` header passed in with the tool invocation request. This method
+allows Toolbox to make queries to [BigQuery][bigquery-docs] on behalf of the
+client or the end-user.
+
+When using this on-behalf-of authentication, you must ensure that the
+identity used has been granted the correct IAM permissions. Currently,
+this option is only supported by the following BigQuery tools:
+
+- [`bigquery-sql`](../tools/bigquery/bigquery-sql.md)  
+  Run SQL queries directly against BigQuery datasets.
 
 [iam-overview]: https://cloud.google.com/bigquery/docs/access-control
 [adc]: https://cloud.google.com/docs/authentication#adc
 [set-adc]: https://cloud.google.com/docs/authentication/provide-credentials-adc
-[grant-permissions]: https://cloud.google.com/bigquery/docs/access-control
 
 ## Example
+
+Initialize a BigQuery source that uses ADC:
 
 ```yaml
 sources:
   my-bigquery-source:
     kind: "bigquery"
     project: "my-project-id"
+    # location: "US" # Optional: Specifies the location for query jobs.
+```
+
+Initialize a BigQuery source that uses the client's access token:
+
+```yaml
+sources:
+  my-bigquery-client-auth-source:
+    kind: "bigquery"
+    project: "my-project-id"
+    useClientOAuth: true
+    # location: "US" # Optional: Specifies the location for query jobs.
 ```
 
 ## Reference
 
-| **field** | **type** | **required** | **description**                                                               |
-|-----------|:--------:|:------------:|-------------------------------------------------------------------------------|
-| kind      |  string  |     true     | Must be "bigquery".                                                           |
-| project   |  string  |     true     | Id of the GCP project that the cluster was created in (e.g. "my-project-id"). |
-| location  |  string  |    false     | Specifies the location (e.g., 'us', 'asia-northeast1') in which to run the query job. This location must match the location of any tables referenced in the query. The default behavior is for it to be executed in the US multi-region |
+| **field**      | **type** | **required** | **description**                                                                                                                                                                                                                         |
+|----------------|:--------:|:------------:|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| kind           |  string  |     true     | Must be "bigquery".                                                                                                                                                                                                                     |
+| project        |  string  |     true     | Id of the Google Cloud project to use for billing and as the default project for BigQuery resources.                                                                               |
+| location       |  string  |    false     | Specifies the location (e.g., 'us', 'asia-northeast1') in which to run the query job. This location must match the location of any tables referenced in the query. Defaults to the table's location or 'US' if the location cannot be determined. [Learn More](https://cloud.google.com/bigquery/docs/locations) |
+| useClientOAuth |   bool   |    false     | If true, forwards the client's OAuth access token from the "Authorization" header to downstream queries.                                                                                                                                |
 
 
 # Bigtable
@@ -6529,6 +4799,94 @@ sources:
 | kind      |  string  |     true     | Must be "bigtable".                                                           |
 | project   |  string  |     true     | Id of the GCP project that the cluster was created in (e.g. "my-project-id"). |
 | instance  |  string  |     true     | Name of the Bigtable instance.                                                |
+
+
+# ClickHouse
+ClickHouse is an open-source, OLTP database.
+
+
+## About
+
+[ClickHouse][clickhouse-docs] is a fast, open-source, column-oriented database 
+
+[clickhouse-docs]: https://clickhouse.com/docs
+
+## Available Tools
+
+- [`clickhouse-execute-sql`](../tools/clickhouse/clickhouse-execute-sql.md)  
+  Execute parameterized SQL queries in ClickHouse with query logging.
+
+- [`clickhouse-sql`](../tools/clickhouse/clickhouse-sql.md)  
+  Execute SQL queries as prepared statements in ClickHouse.
+
+
+## Requirements
+
+### Database User
+
+This source uses standard ClickHouse authentication. You will need to [create a
+ClickHouse user][clickhouse-users] (or with [ClickHouse Cloud][clickhouse-cloud]) to connect to the database with. The user
+should have appropriate permissions for the operations you plan to perform.
+
+[clickhouse-cloud]: https://clickhouse.com/docs/getting-started/quick-start/cloud#connect-with-your-app
+[clickhouse-users]: https://clickhouse.com/docs/en/sql-reference/statements/create/user
+
+### Network Access
+
+ClickHouse supports multiple protocols:
+
+- **HTTPS protocol** (default port 8443) - Secure HTTP access (default)
+- **HTTP protocol** (default port 8123) - Good for web-based access
+
+## Example
+
+### Secure Connection Example
+
+```yaml
+sources:
+    secure-clickhouse-source:
+        kind: clickhouse
+        host: clickhouse.example.com
+        port: "8443"
+        database: analytics
+        user: ${CLICKHOUSE_USER}
+        password: ${CLICKHOUSE_PASSWORD}
+        protocol: https
+        secure: true
+```
+
+### HTTP Protocol Example
+
+```yaml
+sources:
+    http-clickhouse-source:
+        kind: clickhouse
+        host: localhost
+        port: "8123"
+        database: logs
+        user: ${CLICKHOUSE_USER}
+        password: ${CLICKHOUSE_PASSWORD}
+        protocol: http
+        secure: false
+```
+
+{{< notice tip >}}
+Use environment variable replacement with the format ${ENV_NAME}
+instead of hardcoding your secrets into the configuration file.
+{{< /notice >}}
+
+## Reference
+
+| **field**   | **type** | **required** | **description**                                                                    |
+|-------------|:--------:|:------------:|------------------------------------------------------------------------------------|
+| kind        |  string  |     true     | Must be "clickhouse".                                                              |
+| host        |  string  |     true     | IP address or hostname to connect to (e.g. "127.0.0.1" or "clickhouse.example.com") |
+| port        |  string  |     true     | Port to connect to (e.g. "8443" for HTTPS, "8123" for HTTP)                     |
+| database    |  string  |     true     | Name of the ClickHouse database to connect to (e.g. "my_database").              |
+| user        |  string  |     true     | Name of the ClickHouse user to connect as (e.g. "analytics_user").               |
+| password    |  string  |    false     | Password of the ClickHouse user (e.g. "my-password").                             |
+| protocol    |  string  |    false     | Connection protocol: "https" (default) or "http".                      |
+| secure      |  boolean |    false     | Whether to use a secure connection (TLS). Default: false.                         |
 
 
 # Cloud SQL for MySQL
@@ -6914,12 +5272,16 @@ allowing tools to execute SQL queries against it.
 sources:
     my-couchbase-instance:
         kind: couchbase
-        connectionString: couchbase://localhost:8091
+        connectionString: couchbase://localhost
         bucket: travel-sample
         scope: inventory
         username: Administrator
         password: password
 ```
+
+{{< notice note >}}
+For more details about alternate addresses and custom ports refer to [Managing Connections](https://docs.couchbase.com/java-sdk/current/howtos/managing-connections.html).
+{{< /notice >}}
 
 ## Reference
 
@@ -7326,6 +5688,61 @@ instead of hardcoding your secrets into the configuration file.
 | namespace   |  uint64  |     false    | Dgraph namespace (not required for Dgraph Cloud Shared Clusters).                                |
 
 
+# Firebird
+Firebird is a powerful, cross-platform, and open-source relational database.
+
+
+## About
+
+[Firebird][fb-docs] is a relational database management system offering many ANSI SQL standard features that runs on Linux, Windows, and a variety of Unix platforms. It is known for its small footprint, powerful features, and easy maintenance.
+
+[fb-docs]: https://firebirdsql.org/
+
+## Available Tools
+
+- [`firebird-sql`](../tools/firebird/firebird-sql.md)  
+  Execute SQL queries as prepared statements in Firebird.
+
+- [`firebird-execute-sql`](../tools/firebird/firebird-execute-sql.md)  
+  Run parameterized SQL statements in Firebird.
+
+## Requirements
+
+### Database User
+
+This source uses standard authentication. You will need to [create a Firebird user][fb-users] to login to the database with.
+
+[fb-users]: https://firebirdsql.org/refdocs/langrefupd25-sql-create-user.html
+
+## Example
+
+```yaml
+sources:
+    my_firebird_db:
+        kind: firebird
+        host: "localhost"
+        port: 3050
+        database: "/path/to/your/database.fdb"
+        user: ${FIREBIRD_USER}
+        password: ${FIREBIRD_PASS}
+```
+
+{{< notice tip >}}
+Use environment variable replacement with the format ${ENV_NAME}
+instead of hardcoding your secrets into the configuration file.
+{{< /notice >}}
+
+## Reference
+
+| **field** | **type** | **required** | **description**                                                        |
+|-----------|:--------:|:------------:|------------------------------------------------------------------------|
+| kind      |  string  |     true     | Must be "firebird".                                                    |
+| host      |  string  |     true     | IP address to connect to (e.g. "127.0.0.1")                            |
+| port      |  string  |     true     | Port to connect to (e.g. "3050")                                       |
+| database  |  string  |     true     | Path to the Firebird database file (e.g. "/var/lib/firebird/data/test.fdb"). |
+| user      |  string  |     true     | Name of the Firebird user to connect as (e.g. "SYSDBA").               |
+| password  |  string  |     true     | Password of the Firebird user (e.g. "masterkey").                      |
+
 # Firestore
 Firestore is a NoSQL document database built for automatic scaling, high performance, and ease of application development. It's a fully managed, serverless database that supports mobile, web, and server development.
 
@@ -7496,7 +5913,8 @@ a self-signed ssl certificate for the Looker server. Anything other than "true"
 will be interpreted as false.
 
 The client id and client secret are seemingly random character sequences
-assigned by the looker server.
+assigned by the looker server. If you are using Looker OAuth you don't need
+these settings
 
 {{< notice tip >}}
 Use environment variable replacement with the format ${ENV_NAME}
@@ -7505,14 +5923,18 @@ instead of hardcoding your secrets into the configuration file.
 
 ## Reference
 
-| **field**     | **type** | **required** | **description**                                                                           |
-| ------------- | :------: | :----------: | ----------------------------------------------------------------------------------------- |
-| kind          |  string  |     true     | Must be "looker".                                                                         |
-| base_url      |  string  |     true     | The URL of your Looker server with no trailing /).                                        |
-| client_id     |  string  |     true     | The client id assigned by Looker.                                                         |
-| client_secret |  string  |     true     | The client secret assigned by Looker.                                                     |
-| verify_ssl    |  string  |     true     | Whether to check the ssl certificate of the server.                                       |
-| timeout       |  string  |    false     | Maximum time to wait for query execution (e.g. "30s", "2m"). By default, 120s is applied. |
+| **field**            | **type** | **required** | **description**                                                                           |
+| -------------------- | :------: | :----------: | ----------------------------------------------------------------------------------------- |
+| kind                 |  string  |     true     | Must be "looker".                                                                         |
+| base_url             |  string  |     true     | The URL of your Looker server with no trailing /).                                        |
+| client_id            |  string  |    false     | The client id assigned by Looker.                                                         |
+| client_secret        |  string  |    false     | The client secret assigned by Looker.                                                     |
+| verify_ssl           |  string  |    false     | Whether to check the ssl certificate of the server.                                       |
+| timeout              |  string  |    false     | Maximum time to wait for query execution (e.g. "30s", "2m"). By default, 120s is applied. |
+| use_client_oauth     |  string  |    false     | Use OAuth tokens instead of client_id and client_secret. (default: false)                 |
+| show_hidden_models   |  string  |    false     | Show or hide hidden models. (default: true)                                               |
+| show_hidden_explores |  string  |    false     | Show or hide hidden explores. (default: true)                                             |
+| show_hidden_fields   |  string  |    false     | Show or hide hidden fields. (default: true)                                               |
 
 
 # MongoDB
@@ -7533,6 +5955,7 @@ sources:
     my-mongodb:
         kind: mongodb
         uri: "mongodb+srv://username:password@host.mongodb.net"       
+
 ```
 
 ## Reference
@@ -7541,7 +5964,6 @@ sources:
 |-----------|:--------:|:------------:|-------------------------------------------------------------------|
 | kind      |  string  |     true     | Must be "mongodb".                                                |
 | uri       |  string  |     true     | connection string to connect to MongoDB                           |
-| database  |  string  |     true     | Name of the mongodb database to connect to (e.g. "sample_mflix"). |
 
 
 # MySQL
@@ -7584,6 +6006,9 @@ sources:
         database: my_db
         user: ${USER_NAME}
         password: ${PASSWORD}
+        # Optional TLS and other driver parameters. For example, enable preferred TLS:
+        # queryParams:
+        #     tls: preferred
         queryTimeout: 30s # Optional: query timeout duration
 ```
 
@@ -7603,6 +6028,7 @@ instead of hardcoding your secrets into the configuration file.
 | user         |  string  |     true     | Name of the MySQL user to connect as (e.g. "my-mysql-user").                                    |
 | password     |  string  |     true     | Password of the MySQL user (e.g. "my-password").                                                |
 | queryTimeout |  string  |    false     | Maximum time to wait for query execution (e.g. "30s", "2m"). By default, no timeout is applied. |
+| queryParams | map<string,string> | false | Arbitrary DSN parameters passed to the driver (e.g. `tls: preferred`, `charset: utf8mb4`). Useful for enabling TLS or other connection options. |
 
 
 # Neo4j
@@ -8173,6 +6599,66 @@ instead of hardcoding your secrets into the configuration file.
 | ssl       |  boolean |    false     | Whether to use SSL/TLS encryption. Automatically enabled for TiDB Cloud instances.         |
 
 
+# Trino
+Trino is a distributed SQL query engine for big data analytics.
+
+
+## About
+
+[Trino][trino-docs] is a distributed SQL query engine designed for fast analytic queries against data of any size. It allows you to query data where it lives, including Hive, Cassandra, relational databases or even proprietary data stores.
+
+[trino-docs]: https://trino.io/docs/
+
+## Available Tools
+
+- [`trino-sql`](../tools/trino/trino-sql.md)  
+  Execute parameterized SQL queries against Trino.
+
+- [`trino-execute-sql`](../tools/trino/trino-execute-sql.md)  
+  Execute arbitrary SQL queries against Trino.
+
+## Requirements
+
+### Trino Cluster
+
+You need access to a running Trino cluster with appropriate user permissions for the catalogs and schemas you want to query.
+
+## Example
+
+```yaml
+sources:
+    my-trino-source:
+    kind: trino
+    host: trino.example.com
+    port: "8080"
+    user: ${TRINO_USER}  # Optional for anonymous access
+    password: ${TRINO_PASSWORD}  # Optional
+    catalog: hive
+    schema: default
+```
+
+{{< notice tip >}}
+Use environment variable replacement with the format ${ENV_NAME}
+instead of hardcoding your secrets into the configuration file.
+{{< /notice >}}
+
+## Reference
+
+|  **field**  |      **type**      | **required** | **description**                                                        |
+|-------------|:------------------:|:------------:|------------------------------------------------------------------------|
+| kind        |       string       |     true     | Must be "trino".                                                       |
+| host        |       string       |     true     | Trino coordinator hostname (e.g. "trino.example.com")                 |
+| port        |       string       |     true     | Trino coordinator port (e.g. "8080", "8443")                          |
+| user        |       string       |     false    | Username for authentication (e.g. "analyst"). Optional for anonymous access. |
+| password    |       string       |     false    | Password for basic authentication                                      |
+| catalog     |       string       |     true     | Default catalog to use for queries (e.g. "hive")                      |
+| schema      |       string       |     true     | Default schema to use for queries (e.g. "default")                    |
+| queryTimeout|       string       |     false    | Query timeout duration (e.g. "30m", "1h")                             |
+| accessToken |       string       |     false    | JWT access token for authentication                                    |
+| kerberosEnabled | boolean        |     false    | Enable Kerberos authentication (default: false)                       |
+| sslEnabled  |       boolean      |     false    | Enable SSL/TLS (default: false)                                       |
+
+
 # Valkey
 Valkey is an open-source, in-memory data structure store, forked from Redis.
 
@@ -8241,6 +6727,48 @@ sources:
 | database     |   int    |    false     | The Valkey database to connect to. Not applicable for cluster enabled instances. The default database is `0`.                    |
 | useGCPIAM    |   bool   |    false     | Set it to `true` if you are using GCP's IAM authentication. Defaults to `false`.                                                 |
 | disableCache |   bool   |    false     | Set it to `true` if you want to enable client-side caching. Defaults to `false`.                                                 |
+
+
+# YugabyteDB
+YugabyteDB is a high-performance, distributed SQL database. 
+
+
+## About
+
+[YugabyteDB][yugabytedb] is a high-performance, distributed SQL database designed for global, internet-scale applications, with full PostgreSQL compatibility.
+
+[yugabytedb]: https://www.yugabyte.com/
+
+## Example
+
+```yaml
+sources:
+    my-yb-source:
+        kind: yugabytedb
+        host: 127.0.0.1
+        port: 5433
+        database: yugabyte
+        user: ${USER_NAME}
+        password: ${PASSWORD}
+        loadBalance: true
+        topologyKeys: cloud.region.zone1:1,cloud.region.zone2:2
+```
+
+## Reference
+
+| **field**                         | **type** | **required** | **description**                                                        |
+|-----------------------------------|:--------:|:------------:|------------------------------------------------------------------------|
+| kind                              |  string  |     true     | Must be "yugabytedb".                                                    |
+| host                              |  string  |     true     | IP address to connect to.                           |
+| port                              |  integer  |     true     | Port to connect to. The default port is 5433.                                      |
+| database                          |  string  |     true     | Name of the YugabyteDB database to connect to. The default database name is yugabyte.           |
+| user                              |  string  |     true     | Name of the YugabyteDB user to connect as. The default user is yugabyte.          |
+| password                          |  string  |     true     | Password of the YugabyteDB user. The default password is yugabyte.                   |
+| loadBalance                      |  boolean  |     false     | If true, enable uniform load balancing. The default loadBalance value is false.                   |
+| topologyKeys                     |  string  |     false     | Comma-separated geo-locations in the form cloud.region.zone:priority to enable topology-aware load balancing. Ignored if loadBalance is false. It is null by default.                   |
+| ybServersRefreshInterval       |  integer  |     false     | The interval (in seconds) to refresh the servers list; ignored if loadBalance is false. The default value of ybServersRefreshInterval is 300.                    |
+| fallbackToTopologyKeysOnly    |  boolean  |     false     | If set to true and topologyKeys are specified, only connect to nodes specified in topologyKeys. By defualt, this is set to false.                    |
+| failedHostReconnectDelaySecs  |  integer  |     false     | Time (in seconds) to wait before trying to connect to failed nodes. The default value of is 5.                   |
 
 
 # Tools
@@ -8517,6 +7045,11 @@ Tools that work with Bigtable Sources.
 
 
 
+# ClickHouse
+Tools for interacting with ClickHouse databases and tables.
+
+
+
 # Couchbase
 Tools that work with Couchbase Sources.
 
@@ -8529,6 +7062,11 @@ Tools that work with Dataplex Sources.
 
 # Dgraph
 Tools that work with Dgraph Sources.
+
+
+
+# Firebird
+Tools that work with Firebird Sources.
 
 
 
@@ -8597,6 +7135,11 @@ Tools that work with TiDB Sources, such as TiDB Cloud and self-hosted TiDB.
 
 
 
+# Trino
+Tools that work with Trino Sources, such as distributed SQL query engine.
+
+
+
 # Utility tools
 Tools that provide utility.
 
@@ -8605,6 +7148,104 @@ Tools that provide utility.
 # Valkey
 Tools that work with Valkey Sources.
 
+
+
+# yugabytedb-sql
+A "yugabytedb-sql" tool executes a pre-defined SQL statement against a YugabyteDB database.
+
+
+## About
+
+A `yugabytedb-sql` tool executes a pre-defined SQL statement against a YugabyteDB
+database.
+
+The specified SQL statement is executed as a prepared statement,
+and specified parameters will inserted according to their position: e.g. `1`
+will be the first parameter specified, `$@` will be the second parameter, and so
+on. If template parameters are included, they will be resolved before execution
+of the prepared statement.
+
+## Example
+
+> **Note:** This tool uses parameterized queries to prevent SQL injections.
+> Query parameters can be used as substitutes for arbitrary expressions.
+> Parameters cannot be used as substitutes for identifiers, column names, table
+> names, or other parts of the query.
+
+```yaml
+tools:
+ search_flights_by_number:
+    kind: yugabytedb-sql
+    source: my-yb-instance
+    statement: |
+      SELECT * FROM flights
+      WHERE airline = $1
+      AND flight_number = $2
+      LIMIT 10
+    description: |
+      Use this tool to get information for a specific flight.
+      Takes an airline code and flight number and returns info on the flight.
+      Do NOT use this tool with a flight id. Do NOT guess an airline code or flight number.
+      A airline code is a code for an airline service consisting of two-character
+      airline designator and followed by flight number, which is 1 to 4 digit number.
+      For example, if given CY 0123, the airline is "CY", and flight_number is "123".
+      Another example for this is DL 1234, the airline is "DL", and flight_number is "1234".
+      If the tool returns more than one option choose the date closes to today.
+      Example:
+      {{
+          "airline": "CY",
+          "flight_number": "888",
+      }}
+      Example:
+      {{
+          "airline": "DL",
+          "flight_number": "1234",
+      }}
+    parameters:
+      - name: airline
+        type: string
+        description: Airline unique 2 letter identifier
+      - name: flight_number
+        type: string
+        description: 1 to 4 digit number
+```
+
+### Example with Template Parameters
+
+> **Note:** This tool allows direct modifications to the SQL statement, including identifiers, column names,
+> and table names. **This makes it more vulnerable to SQL injections**. Using basic parameters 
+> only (see above) is recommended for performance and safety reasons. For more details, please
+> check [templateParameters](_index#template-parameters).
+
+```yaml
+tools:
+ list_table:
+    kind: yugabytedb-sql
+    source: my-yb-instance
+    statement: |
+      SELECT * FROM {{.tableName}}
+    description: |
+      Use this tool to list all information from a specific table.
+      Example:
+      {{
+          "tableName": "flights",
+      }}
+    templateParameters:
+      - name: tableName
+        type: string
+        description: Table to select from
+```
+
+## Reference
+
+| **field**           |                  **type**                                 | **required** | **description**                                                                                                                            |
+|---------------------|:---------------------------------------------------------:|:------------:|--------------------------------------------------------------------------------------------------------------------------------------------|
+| kind                |                   string                                  |     true     | Must be "yugabytedb-sql".                                                                                                                    |
+| source              |                   string                                  |     true     | Name of the source the SQL should execute on.                                                                                              |
+| description         |                   string                                  |     true     | Description of the tool that is passed to the LLM.                                                                                         |
+| statement           |                   string                                  |     true     | SQL statement to execute on.                                                                                                               |
+| parameters          | [parameters](_index#specifying-parameters)                |    false     | List of [parameters](_index#specifying-parameters) that will be inserted into the SQL statement.                                           |
+| templateParameters  |  [templateParameters](_index#template-parameters)         |    false     | List of [templateParameters](_index#template-parameters) that will be inserted into the SQL statement before executing prepared statement. |
 
 
 # Samples
@@ -8728,7 +7369,7 @@ In this section, we will download and install the Toolbox binary.
     <!-- {x-release-please-start-version} -->
     ```bash
     export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
-    export VERSION="0.11.0"
+    export VERSION="0.14.0"
     curl -O https://storage.googleapis.com/genai-toolbox/v$VERSION/$OS/toolbox
     ```
     <!-- {x-release-please-end} -->
@@ -9139,7 +7780,7 @@ to use BigQuery, and then run the Toolbox server.
     <!-- {x-release-please-start-version} -->
     ```bash
     export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
-    curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/$OS/toolbox
+    curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/$OS/toolbox
     ```
     <!-- {x-release-please-end} -->
 
@@ -9773,7 +8414,7 @@ In this section, we will download Toolbox, configure our tools in a
     <!-- {x-release-please-start-version} -->
     ```bash
     export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
-    curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/$OS/toolbox
+    curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/$OS/toolbox
     ```
     <!-- {x-release-please-end} -->
 
@@ -9921,6 +8562,144 @@ How to get started with Toolbox using Looker.
 
 
 
+# Gemini-CLI and OAuth
+How to connect to Looker from Gemini-CLI with end-user credentials
+
+
+## Overview
+
+Gemini-CLI can be configured to get an OAuth token from Looker, then send this
+token to MCP Toolbox as part of the request. MCP Toolbox can then use this token
+to authentincate with Looker. This means that there is no need to get a Looker
+Client ID and Client Secret. This also means that MCP Toolbox can be set up as a
+shared resource.
+
+This configuration requires Toolbox v0.14.0 or later.
+
+## Step 1: Register the OAuth App in Looker
+
+You first need to register the OAuth application. Refer to the documentation
+[here](https://cloud.google.com/looker/docs/api-cors#registering_an_oauth_client_application).
+You may need to ask an administrator to do this for you.
+
+1. Go to the API Explorer application, locate "Register OAuth App", and press
+   the "Run It" button.
+1. Set the `client_guid` to "gemini-cli".
+1. Set the `redirect_uri` to "http://localhost:7777/oauth/callback".
+1. The `display_name` and `description` can be "Gemini-CLI" or anything
+   meaningful.
+1. Set `enabled` to "true".
+1. Check the box confirming that you understand this API will change data.
+1. Click the "Run" button.
+
+    ![OAuth Registration](./registration.png)
+
+## Step 2: Install and configure Toolbox
+
+In this section, we will download Toolbox and run the Toolbox server.
+
+1. Download the latest version of Toolbox as a binary:
+
+    {{< notice tip >}}
+   Select the
+   [correct binary](https://github.com/googleapis/genai-toolbox/releases)
+   corresponding to your OS and CPU architecture.
+    {{< /notice >}}
+    <!-- {x-release-please-start-version} -->
+    ```bash
+    export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
+    curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/$OS/toolbox
+    ```
+    <!-- {x-release-please-end} -->
+
+1. Make the binary executable:
+
+    ```bash
+    chmod +x toolbox
+    ```
+
+1. Create a file `looker_env` with the settings for your
+   Looker instance.
+
+   ```bash
+    export LOOKER_BASE_URL=https://looker.example.com
+    export LOOKER_VERIFY_SSL=true
+   ```
+
+   In some instances you may need to append `:19999` to
+   the LOOKER_BASE_URL.
+
+1. Load the looker_env file into your environment.
+
+   ```bash
+   source looker_env
+   ```
+
+1. Run the Toolbox server using the prebuilt Looker tools.
+
+    ```bash
+    ./toolbox --prebuilt looker
+    ```
+
+    The toolbox server will begin listening on localhost port 5000. Leave it
+    running and continue in another terminal.
+
+    Later, when it is time to shut everything down, you can quit the toolbox
+    server with Ctrl-C in this terminal window.
+
+## Step 3: Configure Gemini-CLI
+
+1. Edit the file `~/.gemini/settings.json`. Add the following, substituting your
+   Looker server host name for `looker.example.com`.
+
+    ```json
+    "mcpServers": {
+        "looker": {
+            "httpUrl": "http://localhost:5000/mcp",
+            "oauth": {
+                "enabled": true,
+                "clientId": "gemini-cli",
+                "authorizationUrl": "https://looker.example.com/auth",
+                "tokenUrl": "https://looker.example.com/api/token",
+                "scopes": ["cors_api"]
+            }
+        }
+    }
+    ```
+
+    The `authorizationUrl` should point to the URL you use to access Looker via the
+    web UI. The `tokenUrl` should point to the URL you use to access Looker via
+    the API. In some cases you will need to use the port number `:19999` after
+    the host name but before the `/api/token` part.
+
+1. Start Gemini-CLI.
+
+1. Authenticate with the command `/mcp auth looker`. Gemini-CLI will open up a
+   browser where you will confirm that you want to access Looker with your
+   account.
+
+   ![Authorizing](./authorize.png)
+
+   ![Authenticated](./authenticated.png)
+
+1. Use Gemini-CLI with your tools.
+
+## Using Toolbox as a Shared Service
+
+Toolbox can be run on another server as a shared service accessed by multiple
+users. We strongly recommend running toolbox behind a web proxy such as `nginx`
+which will provide SSL encryption. Google Cloud Run is another good way to run
+toolbox. You will connect to a service like `https://toolbox.example.com/mcp`.
+The proxy server will handle the SSL encryption and certificates. Then it will
+foward the requests to `http://localhost:5000/mcp` running in that environment.
+The details of the config are beyond the scope of this document, but will be
+familiar to your system administrators.
+
+To use the shared service, just change the `localhost:5000` in the `httpUrl` in
+`~/.gemini/settings.json` to the host name and possibly the port of the shared
+service.
+
+
 # Quickstart (MCP with Looker and Gemini-CLI)
 How to get started running Toolbox with Gemini-CLI and Looker as the source.
 
@@ -9953,7 +8732,7 @@ In this section, we will download Toolbox and run the Toolbox server.
     <!-- {x-release-please-start-version} -->
     ```bash
     export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
-    curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/$OS/toolbox
+    curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/$OS/toolbox
     ```
     <!-- {x-release-please-end} -->
 
@@ -10063,7 +8842,7 @@ In this section, we will download Toolbox and run the Toolbox server.
     <!-- {x-release-please-start-version} -->
     ```bash
     export OS="linux/amd64" # one of linux/amd64, darwin/arm64, darwin/amd64, or windows/amd64
-    curl -O https://storage.googleapis.com/genai-toolbox/v0.12.0/$OS/toolbox
+    curl -O https://storage.googleapis.com/genai-toolbox/v0.14.0/$OS/toolbox
     ```
     <!-- {x-release-please-end} -->
 
@@ -10256,5 +9035,361 @@ Python client SDK
     <meta http-equiv="refresh" content="0;url=https://github.com/googleapis/mcp-toolbox-sdk-python"/>
   </head>
 </html>
+
+
+# Reference
+This section contains reference documentation.
+
+
+# CLI
+This page describes the `toolbox` command-line options.
+
+
+## Reference
+
+| Flag (Short) | Flag (Long) | Description | Default |
+|---|---|---|---|
+| `-a` | `--address` | Address of the interface the server will listen on. | `127.0.0.1` |
+| | `--disable-reload` | Disables dynamic reloading of tools file. | |
+| `-h` | `--help` | help for toolbox | |
+| | `--log-level` | Specify the minimum level logged. Allowed: 'DEBUG', 'INFO', 'WARN', 'ERROR'. | `info` |
+| | `--logging-format` | Specify logging format to use. Allowed: 'standard' or 'JSON'. | `standard` |
+| `-p` | `--port` | Port the server will listen on. | `5000` |
+| | `--prebuilt` | Use a prebuilt tool configuration by source type. Cannot be used with --tools-file. See [Prebuilt Tools Reference](prebuilt-tools.md) for allowed values. | |
+| | `--stdio` | Listens via MCP STDIO instead of acting as a remote HTTP server. | |
+| | `--telemetry-gcp` | Enable exporting directly to Google Cloud Monitoring. | |
+| | `--telemetry-otlp` | Enable exporting using OpenTelemetry Protocol (OTLP) to the specified endpoint (e.g. 'http://127.0.0.1:4318') | |
+| | `--telemetry-service-name` | Sets the value of the service.name resource attribute for telemetry data. | `toolbox` |
+| | `--tools-file` | File path specifying the tool configuration. Cannot be used with --prebuilt, --tools-files, or --tools-folder. | |
+| | `--tools-files` | Multiple file paths specifying tool configurations. Files will be merged. Cannot be used with --prebuilt, --tools-file, or --tools-folder. | |
+| | `--tools-folder` | Directory path containing YAML tool configuration files. All .yaml and .yml files in the directory will be loaded and merged. Cannot be used with --prebuilt, --tools-file, or --tools-files. | |
+| | `--ui` | Launches the Toolbox UI web server. | |
+| `-v` | `--version` | version for toolbox | |
+
+## Examples
+
+### Transport Configuration
+
+**Server Settings:**
+- `--address`, `-a`: Server listening address (default: "127.0.0.1")
+- `--port`, `-p`: Server listening port (default: 5000)
+
+**STDIO:**
+- `--stdio`: Run in MCP STDIO mode instead of HTTP server
+
+#### Usage Examples
+
+```bash
+# Basic server with custom port configuration
+./toolbox --tools-file "tools.yaml" --port 8080
+```
+
+### Tool Configuration Sources
+
+The CLI supports multiple mutually exclusive ways to specify tool configurations:
+
+**Single File:** (default)
+- `--tools-file`: Path to a single YAML configuration file (default: `tools.yaml`)
+
+**Multiple Files:**
+- `--tools-files`: Comma-separated list of YAML files to merge
+
+**Directory:**
+- `--tools-folder`: Directory containing YAML files to load and merge
+
+**Prebuilt Configurations:**
+- `--prebuilt`: Use predefined configurations for specific database types (e.g., 'bigquery', 'postgres', 'spanner'). See [Prebuilt Tools Reference](prebuilt-tools.md) for allowed values.
+
+{{< notice tip >}}
+The CLI enforces mutual exclusivity between configuration source flags, preventing simultaneous use of `--prebuilt` with file-based options, and ensuring only one of `--tools-file`, `--tools-files`, or `--tools-folder` is used at a time.
+{{< /notice >}}
+
+### Hot Reload
+
+Toolbox enables dynamic reloading by default. To disable, use the
+`--disable-reload` flag.
+
+### Toolbox UI
+
+To launch Toolbox's interactive UI, use the `--ui` flag. This allows you to test tools and toolsets with features such as authorized parameters. To learn more, visit [Toolbox UI](../how-to/toolbox-ui/index.md).
+
+# Prebuilt Tools
+This page lists all the prebuilt tools available.
+
+
+Prebuilt tools are reusable, pre-packaged toolsets that are designed to extend the capabilities of agents. These tools are built to be generic and adaptable, allowing developers to interact with and take action on databases.
+
+See guides, [Connect from your IDE](../how-to/connect-ide/_index.md), for details on how to connect your AI tools (IDEs) to databases via Toolbox and MCP.
+
+## AlloyDB Postgres
+
+*   `--prebuilt` value: `alloydb-postgres`
+*   **Environment Variables:**
+    *   `ALLOYDB_POSTGRES_PROJECT`: The GCP project ID.
+    *   `ALLOYDB_POSTGRES_REGION`: The region of your AlloyDB instance.
+    *   `ALLOYDB_POSTGRES_CLUSTER`: The ID of your AlloyDB cluster.
+    *   `ALLOYDB_POSTGRES_INSTANCE`: The ID of your AlloyDB instance.
+    *   `ALLOYDB_POSTGRES_DATABASE`: The name of the database to connect to.
+    *   `ALLOYDB_POSTGRES_USER`: (Optional) The database username. Defaults to IAM authentication if unspecified.
+    *   `ALLOYDB_POSTGRES_PASSWORD`: (Optional) The password for the database user. Defaults to IAM authentication if unspecified.
+    *   `ALLOYDB_POSTGRES_IP_TYPE`: (Optional) The IP type i.e. "Public" or "Private" (Default: Public).
+*   **Permissions:**
+    *   **AlloyDB Client** (`roles/alloydb.client`) to connect to the instance.
+    *   Database-level permissions (e.g., `SELECT`, `INSERT`) are required to execute queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a SQL query.
+    *   `list_tables`: Lists tables in the database.
+
+## AlloyDB Postgres Admin
+
+* `--prebuilt` value: `alloydb-postgres-admin`
+*   **Environment Variables:**
+    *   `API_KEY`: Your API key for the AlloyDB API.
+*   **Permissions:**
+    *   **AlloyDB Admin** (`roles/alloydb.admin`) IAM role is required on the project.
+*   **Tools:**
+    *   `alloydb-create-cluster`: Creates a new AlloyDB cluster.
+    *   `alloydb-operations-get`: Polls the operations API to track the status of long-running operations.
+    *   `alloydb-create-instance`: Creates a new AlloyDB instance within a cluster.
+    *   `alloydb-list-clusters`: Lists all AlloyDB clusters in a project.
+    *   `alloydb-list-instances`: Lists all instances within an AlloyDB cluster.
+    *   `alloydb-list-users`: Lists all database users within an AlloyDB cluster.
+    *   `alloydb-create-user`: Creates a new database user in an AlloyDB cluster.
+
+## BigQuery
+
+*   `--prebuilt` value: `bigquery`
+*   **Environment Variables:**
+    *   `BIGQUERY_PROJECT`: The GCP project ID.
+    *   `BIGQUERY_LOCATION`: (Optional) The dataset location.
+*   **Permissions:**
+    *   **BigQuery User** (`roles/bigquery.user`) to execute queries and view metadata.
+    *   **BigQuery Metadata Viewer** (`roles/bigquery.metadataViewer`) to view all datasets.
+    *   **BigQuery Data Editor** (`roles/bigquery.dataEditor`) to create or modify datasets and tables.
+    *   **Gemini for Google Cloud** (`roles/cloudaicompanion.user`) to use the conversational analytics API.
+*   **Tools:**
+    *   `ask_data_insights`: Use this tool to perform data analysis, get insights, or answer complex questions about the contents of specific BigQuery tables. For more information on required roles, API setup, and IAM configuration, see the setup and authentication section of the [Conversational Analytics API documentation](https://cloud.google.com/gemini/docs/conversational-analytics-api/overview).
+    *   `execute_sql`: Executes a SQL statement.
+    *   `forecast`: Use this tool to forecast time series data.
+    *   `get_dataset_info`: Gets dataset metadata.
+    *   `get_table_info`: Gets table metadata.
+    *   `list_dataset_ids`: Lists datasets.
+    *   `list_table_ids`: Lists tables.
+
+## Cloud SQL for MySQL
+
+*   `--prebuilt` value: `cloud-sql-mysql`
+*   **Environment Variables:**
+    *   `CLOUD_SQL_MYSQL_PROJECT`: The GCP project ID.
+    *   `CLOUD_SQL_MYSQL_REGION`: The region of your Cloud SQL instance.
+    *   `CLOUD_SQL_MYSQL_INSTANCE`: The ID of your Cloud SQL instance.
+    *   `CLOUD_SQL_MYSQL_DATABASE`: The name of the database to connect to.
+    *   `CLOUD_SQL_MYSQL_USER`: The database username.
+    *   `CLOUD_SQL_MYSQL_PASSWORD`: The password for the database user.
+*   **Permissions:**
+    *   **Cloud SQL Client** (`roles/cloudsql.client`) to connect to the instance.
+    *   Database-level permissions (e.g., `SELECT`, `INSERT`) are required to execute queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a SQL query.
+    *   `list_tables`: Lists tables in the database.
+
+## Cloud SQL for PostgreSQL
+
+*   `--prebuilt` value: `cloud-sql-postgres`
+*   **Environment Variables:**
+    *   `CLOUD_SQL_POSTGRES_PROJECT`: The GCP project ID.
+    *   `CLOUD_SQL_POSTGRES_REGION`: The region of your Cloud SQL instance.
+    *   `CLOUD_SQL_POSTGRES_INSTANCE`: The ID of your Cloud SQL instance.
+    *   `CLOUD_SQL_POSTGRES_DATABASE`: The name of the database to connect to.
+    *   `CLOUD_SQL_POSTGRES_USER`: (Optional) The database username. Defaults to IAM authentication if unspecified.
+    *   `CLOUD_SQL_POSTGRES_PASSWORD`: (Optional) The password for the database user. Defaults to IAM authentication if unspecified.
+    *   `CLOUD_SQL_POSTGRES_IP_TYPE`: (Optional) The IP type i.e. "Public" or "Private" (Default: Public).
+*   **Permissions:**
+    *   **Cloud SQL Client** (`roles/cloudsql.client`) to connect to the instance.
+    *   Database-level permissions (e.g., `SELECT`, `INSERT`) are required to execute queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a SQL query.
+    *   `list_tables`: Lists tables in the database.
+
+## Cloud SQL for SQL Server
+
+*   `--prebuilt` value: `cloud-sql-mssql`
+*   **Environment Variables:**
+    *   `CLOUD_SQL_MSSQL_PROJECT`: The GCP project ID.
+    *   `CLOUD_SQL_MSSQL_REGION`: The region of your Cloud SQL instance.
+    *   `CLOUD_SQL_MSSQL_INSTANCE`: The ID of your Cloud SQL instance.
+    *   `CLOUD_SQL_MSSQL_DATABASE`: The name of the database to connect to.
+    *   `CLOUD_SQL_MSSQL_IP_ADDRESS`: The IP address of the Cloud SQL instance.
+    *   `CLOUD_SQL_MSSQL_USER`: The database username.
+    *   `CLOUD_SQL_MSSQL_PASSWORD`: The password for the database user.
+    *   `CLOUD_SQL_MSSQL_IP_TYPE`: (Optional) The IP type i.e. "Public" or "Private" (Default: Public).
+*   **Permissions:**
+    *   **Cloud SQL Client** (`roles/cloudsql.client`) to connect to the instance.
+    *   Database-level permissions (e.g., `SELECT`, `INSERT`) are required to execute queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a SQL query.
+    *   `list_tables`: Lists tables in the database.
+
+## Dataplex
+
+*   `--prebuilt` value: `dataplex`
+*   **Environment Variables:**
+    *   `DATAPLEX_PROJECT`: The GCP project ID.
+*   **Permissions:**
+    *   **Dataplex Reader** (`roles/dataplex.viewer`) to search and look up entries.
+    *   **Dataplex Editor** (`roles/dataplex.editor`) to modify entries.
+*   **Tools:**
+    *   `dataplex_search_entries`: Searches for entries in Dataplex Catalog.
+    *   `dataplex_lookup_entry`: Retrieves a specific entry from Dataplex Catalog.
+    *   `dataplex_search_aspect_types`: Finds aspect types relevant to the query.
+
+## Firestore
+
+*   `--prebuilt` value: `firestore`
+*   **Environment Variables:**
+    *   `FIRESTORE_PROJECT`: The GCP project ID.
+    *   `FIRESTORE_DATABASE`: (Optional) The Firestore database ID. Defaults to "(default)".
+*   **Permissions:**
+    *   **Cloud Datastore User** (`roles/datastore.user`) to get documents, list collections, and query collections.
+    *   **Firebase Rules Viewer** (`roles/firebaserules.viewer`) to get and validate Firestore rules.
+*   **Tools:**
+    *   `firestore-get-documents`: Gets multiple documents from Firestore by their paths.
+    *   `firestore-list-collections`: Lists Firestore collections for a given parent path.
+    *   `firestore-delete-documents`: Deletes multiple documents from Firestore.
+    *   `firestore-query-collection`: Retrieves one or more Firestore documents from a collection.
+    *   `firestore-get-rules`: Retrieves the active Firestore security rules.
+    *   `firestore-validate-rules`: Checks the provided Firestore Rules source for syntax and validation errors.
+
+## Looker
+
+*   `--prebuilt` value: `looker`
+*   **Environment Variables:**
+    *   `LOOKER_BASE_URL`: The URL of your Looker instance.
+    *   `LOOKER_CLIENT_ID`: The client ID for the Looker API.
+    *   `LOOKER_CLIENT_SECRET`: The client secret for the Looker API.
+    *   `LOOKER_VERIFY_SSL`: Whether to verify SSL certificates.
+*   **Permissions:**
+    *   A Looker account with permissions to access the desired models, explores, and data is required.
+*   **Tools:**
+    *   `get_models`: Retrieves the list of LookML models.
+    *   `get_explores`: Retrieves the list of explores in a model.
+    *   `get_dimensions`: Retrieves the list of dimensions in an explore.
+    *   `get_measures`: Retrieves the list of measures in an explore.
+    *   `get_filters`: Retrieves the list of filters in an explore.
+    *   `get_parameters`: Retrieves the list of parameters in an explore.
+    *   `query`: Runs a query against the LookML model.
+    *   `query_sql`: Generates the SQL for a query.
+    *   `query_url`: Generates a URL for a query in Looker.
+    *   `get_looks`: Searches for saved looks.
+    *   `run_look`: Runs the query associated with a look.
+    *   `make_look`: Creates a new look.
+    *   `get_dashboards`: Searches for saved dashboards.
+    *   `make_dashboard`: Creates a new dashboard.
+    *   `add_dashboard_element`: Adds a tile to a dashboard.
+
+## Microsoft SQL Server
+
+*   `--prebuilt` value: `mssql`
+*   **Environment Variables:**
+    *   `MSSQL_HOST`: The hostname or IP address of the SQL Server instance.
+    *   `MSSQL_PORT`: The port number for the SQL Server instance.
+    *   `MSSQL_DATABASE`: The name of the database to connect to.
+    *   `MSSQL_USER`: The database username.
+    *   `MSSQL_PASSWORD`: The password for the database user.
+*   **Permissions:**
+    *   Database-level permissions (e.g., `SELECT`, `INSERT`) are required to execute queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a SQL query.
+    *   `list_tables`: Lists tables in the database.
+
+## MySQL
+
+*   `--prebuilt` value: `mysql`
+*   **Environment Variables:**
+    *   `MYSQL_HOST`: The hostname or IP address of the MySQL server.
+    *   `MYSQL_PORT`: The port number for the MySQL server.
+    *   `MYSQL_DATABASE`: The name of the database to connect to.
+    *   `MYSQL_USER`: The database username.
+    *   `MYSQL_PASSWORD`: The password for the database user.
+*   **Permissions:**
+    *   Database-level permissions (e.g., `SELECT`, `INSERT`) are required to execute queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a SQL query.
+    *   `list_tables`: Lists tables in the database.
+
+## OceanBase
+
+*   `--prebuilt` value: `oceanbase`
+*   **Environment Variables:**
+    *   `OCEANBASE_HOST`: The hostname or IP address of the OceanBase server.
+    *   `OCEANBASE_PORT`: The port number for the OceanBase server.
+    *   `OCEANBASE_DATABASE`: The name of the database to connect to.
+    *   `OCEANBASE_USER`: The database username.
+    *   `OCEANBASE_PASSWORD`: The password for the database user.
+*   **Permissions:**
+    *   Database-level permissions (e.g., `SELECT`, `INSERT`) are required to execute queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a SQL query.
+    *   `list_tables`: Lists tables in the database.
+
+## PostgreSQL
+
+*   `--prebuilt` value: `postgres`
+*   **Environment Variables:**
+    *   `POSTGRES_HOST`: The hostname or IP address of the PostgreSQL server.
+    *   `POSTGRES_PORT`: The port number for the PostgreSQL server.
+    *   `POSTGRES_DATABASE`: The name of the database to connect to.
+    *   `POSTGRES_USER`: The database username.
+    *   `POSTGRES_PASSWORD`: The password for the database user.
+    *   `POSTGRES_QUERY_PARAMS`: (Optional) Raw query to be added to the db connection string.
+*   **Permissions:**
+    *   Database-level permissions (e.g., `SELECT`, `INSERT`) are required to execute queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a SQL query.
+    *   `list_tables`: Lists tables in the database.
+
+## Spanner (GoogleSQL dialect)
+
+*   `--prebuilt` value: `spanner`
+*   **Environment Variables:**
+    *   `SPANNER_PROJECT`: The GCP project ID.
+    *   `SPANNER_INSTANCE`: The Spanner instance ID.
+    *   `SPANNER_DATABASE`: The Spanner database ID.
+*   **Permissions:**
+    *   **Cloud Spanner Database Reader** (`roles/spanner.databaseReader`) to execute DQL queries and list tables.
+    *   **Cloud Spanner Database User** (`roles/spanner.databaseUser`) to execute DML queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a DML SQL query.
+    *   `execute_sql_dql`: Executes a DQL SQL query.
+    *   `list_tables`: Lists tables in the database.
+
+## Spanner (PostgreSQL dialect)
+
+*   `--prebuilt` value: `spanner-postgres`
+*   **Environment Variables:**
+    *   `SPANNER_PROJECT`: The GCP project ID.
+    *   `SPANNER_INSTANCE`: The Spanner instance ID.
+    *   `SPANNER_DATABASE`: The Spanner database ID.
+*   **Permissions:**
+    *   **Cloud Spanner Database Reader** (`roles/spanner.databaseReader`) to execute DQL queries and list tables.
+    *   **Cloud Spanner Database User** (`roles/spanner.databaseUser`) to execute DML queries.
+*   **Tools:**
+    *   `execute_sql`: Executes a DML SQL query using the PostgreSQL interface for Spanner.
+    *   `execute_sql_dql`: Executes a DQL SQL query using the PostgreSQL interface for Spanner.
+    *   `list_tables`: Lists tables in the database.
+
+## Neo4j
+
+*   `--prebuilt` value: `neo4j`
+*   **Environment Variables:**
+    *   `NEO4J_URI`: The URI of the Neo4j instance (e.g., `bolt://localhost:7687`).
+    *   `NEO4J_DATABASE`: The name of the Neo4j database to connect to.
+    *   `NEO4J_USERNAME`: The username for the Neo4j instance.
+    *   `NEO4J_PASSWORD`: The password for the Neo4j instance.
+*   **Permissions:**
+    *   **Database-level permissions** are required to execute Cypher queries.
+*   **Tools:**
+    *   `execute_cypher`: Executes a Cypher query.
+    *   `get_schema`: Retrieves the schema of the Neo4j database.
 
 

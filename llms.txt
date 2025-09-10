@@ -9,7 +9,7 @@
 How to get started with Toolbox.
 - [Introduction](https://bpranava.github.io/genai-toolbox/getting-started/introduction/): An introduction to MCP Toolbox for Databases.
 - [Python Quickstart (Local)](https://bpranava.github.io/genai-toolbox/getting-started/local_quickstart/): How to get started running Toolbox locally with [Python](https://github.com/googleapis/mcp-toolbox-sdk-python), PostgreSQL, and  [Agent Development Kit](https://google.github.io/adk-docs/), [LangGraph](https://www.langchain.com/langgraph), [LlamaIndex](https://www.llamaindex.ai/) or [GoogleGenAI](https://pypi.org/project/google-genai/).
-- [JS Quickstart (Local)](https://bpranava.github.io/genai-toolbox/getting-started/local_quickstart_js/): How to get started running Toolbox locally with [JavaScript](https://github.com/googleapis/mcp-toolbox-sdk-js), PostgreSQL, and orchestration frameworks such as [LangChain](https://js.langchain.com/docs/introduction/), [GenkitJS](https://genkit.dev/docs/get-started/), and [LlamaIndex](https://ts.llamaindex.ai/).
+- [JS Quickstart (Local)](https://bpranava.github.io/genai-toolbox/getting-started/local_quickstart_js/): How to get started running Toolbox locally with [JavaScript](https://github.com/googleapis/mcp-toolbox-sdk-js), PostgreSQL, and orchestration frameworks such as [LangChain](https://js.langchain.com/docs/introduction/), [GenkitJS](https://genkit.dev/docs/get-started/),  [LlamaIndex](https://ts.llamaindex.ai/) and [GoogleGenAI](https://github.com/googleapis/js-genai).
 - [Go Quickstart (Local)](https://bpranava.github.io/genai-toolbox/getting-started/local_quickstart_go/): How to get started running Toolbox locally with [Go](https://github.com/googleapis/mcp-toolbox-sdk-go), PostgreSQL, and orchestration frameworks such as [LangChain Go](https://tmc.github.io/langchaingo/docs/), [GenkitGo](https://genkit.dev/go/docs/get-started-go/), [Go GenAI](https://github.com/googleapis/go-genai) and [OpenAI Go](https://github.com/openai/openai-go).
 - [Quickstart (MCP)](https://bpranava.github.io/genai-toolbox/getting-started/mcp_quickstart/): How to get started running Toolbox locally with MCP Inspector.
 - [Configuration](https://bpranava.github.io/genai-toolbox/getting-started/configure/): How to configure Toolbox's tools.yaml file.
@@ -31,7 +31,7 @@ List of guides detailing how to do different things with Toolbox.
   - [Cloud SQL for SQL Server using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/cloud_sql_mssql_mcp/): Connect your IDE to Cloud SQL for SQL Server using Toolbox.
   - [Firestore using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/firestore_mcp/): Connect your IDE to Firestore using Toolbox.
   - [Looker using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/looker_mcp/): Connect your IDE to Looker using Toolbox.
-  - [MySQL using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/mysql_mcp/): Connect your IDE to MySQL using Toolbox.  - [PostgreSQL using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/postgres_mcp/): Connect your IDE to PostgreSQL using Toolbox.
+  - [MySQL using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/mysql_mcp/): Connect your IDE to MySQL using Toolbox.  - [Neo4j using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/neo4j_mcp/): Connect your IDE to Neo4j using Toolbox.  - [PostgreSQL using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/postgres_mcp/): Connect your IDE to PostgreSQL using Toolbox.
   - [Spanner using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/spanner_mcp/): Connect your IDE to Spanner using Toolbox.
   - [SQL Server using MCP](https://bpranava.github.io/genai-toolbox/how-to/connect-ide/mssql_mcp/): Connect your IDE to SQL Server using Toolbox.- [Connect via MCP Client](https://bpranava.github.io/genai-toolbox/how-to/connect_via_mcp/): How to connect to Toolbox from a MCP Client.
 - [Toolbox UI](https://bpranava.github.io/genai-toolbox/how-to/toolbox-ui/): How to effectively use Toolbox UI.
@@ -49,12 +49,14 @@ List of reference documentation for resources in Toolbox.
   - [AlloyDB for PostgreSQL](https://bpranava.github.io/genai-toolbox/resources/sources/alloydb-pg/): AlloyDB for PostgreSQL is a fully-managed, PostgreSQL-compatible database for  demanding transactional workloads.
   - [BigQuery](https://bpranava.github.io/genai-toolbox/resources/sources/bigquery/): BigQuery is Google Cloud's fully managed, petabyte-scale, and cost-effective analytics data warehouse that lets you run analytics over vast amounts of  data in near real time. With BigQuery, there's no infrastructure to set  up or manage, letting you focus on finding meaningful insights using  GoogleSQL and taking advantage of flexible pricing models across on-demand  and flat-rate options.
   - [Bigtable](https://bpranava.github.io/genai-toolbox/resources/sources/bigtable/): Bigtable is a low-latency NoSQL database service for machine learning, operational analytics, and user-facing operations. It's a wide-column, key-value store that can scale to billions of rows and thousands of columns. With Bigtable, you can replicate your data to regions across the world for high availability and data resiliency.
+  - [ClickHouse](https://bpranava.github.io/genai-toolbox/resources/sources/clickhouse/): ClickHouse is an open-source, OLTP database.
   - [Cloud SQL for MySQL](https://bpranava.github.io/genai-toolbox/resources/sources/cloud-sql-mysql/): Cloud SQL for MySQL is a fully-managed database service for MySQL.
   - [Cloud SQL for PostgreSQL](https://bpranava.github.io/genai-toolbox/resources/sources/cloud-sql-pg/): Cloud SQL for PostgreSQL is a fully-managed database service for Postgres.
   - [Cloud SQL for SQL Server](https://bpranava.github.io/genai-toolbox/resources/sources/cloud-sql-mssql/): Cloud SQL for SQL Server is a fully-managed database service for SQL Server.
   - [couchbase](https://bpranava.github.io/genai-toolbox/resources/sources/couchbase/): A "couchbase" source connects to a Couchbase database.
   - [Dataplex](https://bpranava.github.io/genai-toolbox/resources/sources/dataplex/): Dataplex Universal Catalog is a unified, intelligent governance solution for data and AI assets in Google Cloud. Dataplex Universal Catalog powers AI, analytics, and business intelligence at scale.
   - [Dgraph](https://bpranava.github.io/genai-toolbox/resources/sources/dgraph/): Dgraph is fully open-source, built-for-scale graph database for Gen AI workloads
+  - [Firebird](https://bpranava.github.io/genai-toolbox/resources/sources/firebird/): Firebird is a powerful, cross-platform, and open-source relational database.
   - [Firestore](https://bpranava.github.io/genai-toolbox/resources/sources/firestore/): Firestore is a NoSQL document database built for automatic scaling, high performance, and ease of application development. It's a fully managed, serverless database that supports mobile, web, and server development.
   - [HTTP](https://bpranava.github.io/genai-toolbox/resources/sources/http/): The HTTP source enables the Toolbox to retrieve data from a remote server using HTTP requests.
   - [Looker](https://bpranava.github.io/genai-toolbox/resources/sources/looker/): Looker is a business intelligence tool that also provides a semantic layer.
@@ -68,14 +70,18 @@ List of reference documentation for resources in Toolbox.
   - [SQL Server](https://bpranava.github.io/genai-toolbox/resources/sources/mssql/): SQL Server is a relational database management system (RDBMS).
   - [SQLite](https://bpranava.github.io/genai-toolbox/resources/sources/sqlite/): SQLite is a C-language library that implements a small, fast, self-contained,  high-reliability, full-featured, SQL database engine.
   - [TiDB](https://bpranava.github.io/genai-toolbox/resources/sources/tidb/): TiDB is a distributed SQL database that combines the best of traditional RDBMS and NoSQL databases.
+  - [Trino](https://bpranava.github.io/genai-toolbox/resources/sources/trino/): Trino is a distributed SQL query engine for big data analytics.
   - [Valkey](https://bpranava.github.io/genai-toolbox/resources/sources/valkey/): Valkey is an open-source, in-memory data structure store, forked from Redis.
+  - [YugabyteDB](https://bpranava.github.io/genai-toolbox/resources/sources/yugabytedb/): YugabyteDB is a high-performance, distributed SQL database. 
 - [Tools](https://bpranava.github.io/genai-toolbox/resources/tools/): Tools define actions an agent can take -- such as reading and writing to a source.
   - [AlloyDB AI NL](https://bpranava.github.io/genai-toolbox/resources/tools/alloydbainl/): AlloyDB AI NL Tool.
   - [BigQuery](https://bpranava.github.io/genai-toolbox/resources/tools/bigquery/): Tools that work with BigQuery Sources.
   - [Bigtable](https://bpranava.github.io/genai-toolbox/resources/tools/bigtable/): Tools that work with Bigtable Sources.
+  - [ClickHouse](https://bpranava.github.io/genai-toolbox/resources/tools/clickhouse/): Tools for interacting with ClickHouse databases and tables.
   - [Couchbase](https://bpranava.github.io/genai-toolbox/resources/tools/couchbase/): Tools that work with Couchbase Sources.
   - [Dataplex](https://bpranava.github.io/genai-toolbox/resources/tools/dataplex/): Tools that work with Dataplex Sources.
   - [Dgraph](https://bpranava.github.io/genai-toolbox/resources/tools/dgraph/): Tools that work with Dgraph Sources.
+  - [Firebird](https://bpranava.github.io/genai-toolbox/resources/tools/firebird/): Tools that work with Firebird Sources.
   - [Firestore](https://bpranava.github.io/genai-toolbox/resources/tools/firestore/): Tools that work with Firestore Sources.
   - [HTTP](https://bpranava.github.io/genai-toolbox/resources/tools/http/): Tools that work with HTTP Sources.
   - [Looker](https://bpranava.github.io/genai-toolbox/resources/tools/looker/): Tools that work with Looker Sources.
@@ -89,8 +95,10 @@ List of reference documentation for resources in Toolbox.
   - [SQL Server](https://bpranava.github.io/genai-toolbox/resources/tools/mssql/): Tools that work with SQL Server Sources, such as CloudSQL for SQL Server.
   - [SQLite](https://bpranava.github.io/genai-toolbox/resources/tools/sqlite/): Tools that work with SQLite Sources.
   - [TiDB](https://bpranava.github.io/genai-toolbox/resources/tools/tidb/): Tools that work with TiDB Sources, such as TiDB Cloud and self-hosted TiDB.
+  - [Trino](https://bpranava.github.io/genai-toolbox/resources/tools/trino/): Tools that work with Trino Sources, such as distributed SQL query engine.
   - [Utility tools](https://bpranava.github.io/genai-toolbox/resources/tools/utility/): Tools that provide utility.
   - [Valkey](https://bpranava.github.io/genai-toolbox/resources/tools/valkey/): Tools that work with Valkey Sources.
+  - [yugabytedb-sql](https://bpranava.github.io/genai-toolbox/resources/tools/yugabytedb-sql/): A "yugabytedb-sql" tool executes a pre-defined SQL statement against a YugabyteDB database.
 
 ### Samples
 
@@ -102,6 +110,7 @@ Samples and guides for using Toolbox.
   - [Quickstart (Local with BigQuery)](https://bpranava.github.io/genai-toolbox/samples/bigquery/local_quickstart/): How to get started running Toolbox locally with Python, BigQuery, and LangGraph, LlamaIndex, or ADK.
   - [Quickstart (MCP with BigQuery)](https://bpranava.github.io/genai-toolbox/samples/bigquery/mcp_quickstart/): How to get started running Toolbox with MCP Inspector and BigQuery as the source.
 - [Looker](https://bpranava.github.io/genai-toolbox/samples/looker/): How to get started with Toolbox using Looker.
+  - [Gemini-CLI and OAuth](https://bpranava.github.io/genai-toolbox/samples/looker/looker_gemini_oauth/): How to connect to Looker from Gemini-CLI with end-user credentials
   - [Quickstart (MCP with Looker and Gemini-CLI)](https://bpranava.github.io/genai-toolbox/samples/looker/looker_gemini/): How to get started running Toolbox with Gemini-CLI and Looker as the source.
   - [Quickstart (MCP with Looker)](https://bpranava.github.io/genai-toolbox/samples/looker/looker_mcp_inspector/): How to get started running Toolbox with MCP Inspector and Looker as the source.
 
@@ -113,3 +122,9 @@ A list of other information related to Toolbox.
 
 Client SDKs to connect to the MCP Toolbox server.
 - [Go SDK](https://bpranava.github.io/genai-toolbox/sdks/go-sdk/): Go lang client SDK- [JS SDK](https://bpranava.github.io/genai-toolbox/sdks/js-sdk/): Javascript client SDK- [Python SDK](https://bpranava.github.io/genai-toolbox/sdks/python-sdk/): Python client SDK
+### Reference
+
+This section contains reference documentation.
+- [CLI](https://bpranava.github.io/genai-toolbox/reference/cli/): This page describes the `toolbox` command-line options.
+- [Prebuilt Tools](https://bpranava.github.io/genai-toolbox/reference/prebuilt-tools/): This page lists all the prebuilt tools available.
+
